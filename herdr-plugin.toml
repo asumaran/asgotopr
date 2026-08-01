@@ -1,0 +1,23 @@
+id = "asumaran.gotopr"
+name = "gotopr"
+version = "0.1.0"
+min_herdr_version = "0.7.5"
+description = "Jump to your open GitHub PRs across local repos and worktrees"
+platforms = ["macos"]
+
+[[build]]
+command = ["scripts/fetch-binary.sh"]
+
+[[actions]]
+id = "open"
+title = "Open PR switcher"
+contexts = ["global"]
+command = ["scripts/open-pane.sh"]
+
+[[panes]]
+id = "picker"
+title = "PRs"
+placement = "popup"
+width = "85%"
+height = "70%"
+command = ["./gotopr"]
