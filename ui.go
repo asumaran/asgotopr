@@ -143,7 +143,7 @@ func (m *model) currentRow() *row {
 }
 
 func (m *model) listW() int {
-	w := (m.width - 3) * 55 / 100
+	w := (m.width - 3) * 30 / 100
 	if w < 20 {
 		w = 20
 	}
