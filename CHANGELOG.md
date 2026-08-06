@@ -1,3 +1,7 @@
+## v0.2.0 (2026-08-05)
+
+* feat(ui): widen preview pane to a 30/70 list/preview split (1a01111)
+
 ## v0.1.0 (2026-08-01)
 
 * ci: add release tooling and binary workflow (85d669c)
