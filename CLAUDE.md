@@ -30,7 +30,8 @@ single-file layout):
 - `github.go` — gh GraphQL searches (`author:@me`/`assignee:@me`, no bodies),
   batched body fetch, `planRefresh` (updatedAt invalidation), merge/dedup.
 - `repos.go` — `~/Developer` scan → slug → clones map, mtime-keyed scan
-  cache, `primaryClone` (twin-clone rule).
+  cache, `primaryClone` (twin-clone rule). The scan follows symlinked
+  directories (a curated `GOTOPR_ROOT` of links, used by the demo).
 - `git.go` — subprocess-free discovery (`resolveGitDir`, `originURL`,
   `githubSlug*`) + porcelain worktree parsing, `isDirty`, `branchExists`,
   `runGit`.
@@ -43,6 +44,12 @@ single-file layout):
   render cache, instant non-glamour header.
 - `confirm.go` — stash/switch/error flow: `performSwitchCmd`, `stashCmd`,
   dialog views.
+- `scripts/demo/` — the demo scenario (`scenario.sh` + `keys.json`) that
+  `herdr-demo record` (asumaran/herdr-demokit, the recording tool shared by
+  the herdr plugins) uses to re-record `docs/demo.gif`; see
+  `scripts/demo/README.md`. Uses a disposable herdr session (`gotoprdemo`)
+  and a symlink-only `GOTOPR_ROOT`, and parks the plugin's state dir during
+  the take.
 
 ## Build & run
 

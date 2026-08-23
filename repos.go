@@ -55,10 +55,10 @@ func scanRepos(root string, cache repoScanCache) ([]localRepo, repoScanCache) {
 		return nil, fresh
 	}
 	for _, d := range dirs {
-		if !d.IsDir() {
+		path := filepath.Join(root, d.Name())
+		if !isDirOrDirLink(path, d) {
 			continue
 		}
-		path := filepath.Join(root, d.Name())
 		gitdir := resolveGitDir(path)
 		if gitdir == "" {
 			continue
@@ -80,6 +80,23 @@ func scanRepos(root string, cache repoScanCache) ([]localRepo, repoScanCache) {
 		repos = append(repos, localRepo{Slug: slug, Path: path, Name: d.Name()})
 	}
 	return repos, fresh
+}
+
+// isDirOrDirLink reports whether a scan-root entry is a directory, following
+// symlinks: a root made of links to clones elsewhere (e.g. a curated
+// GOTOPR_ROOT for a demo or a test) scans like the real thing. Dangling or
+// file links are skipped. The link path itself is kept as the clone path, so
+// everything downstream (worktree listing, herdr workspaces) sees the
+// directory the user pointed at.
+func isDirOrDirLink(path string, d os.DirEntry) bool {
+	if d.IsDir() {
+		return true
+	}
+	if d.Type()&os.ModeSymlink == 0 {
+		return false
+	}
+	fi, err := os.Stat(path)
+	return err == nil && fi.IsDir()
 }
 
 // slugMap groups clones by slug. A slug maps to multiple clones when the same

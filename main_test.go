@@ -1,6 +1,8 @@
 package main
 
 import (
+	"os"
+	"path/filepath"
 	"testing"
 	"time"
 
@@ -334,3 +336,35 @@ var errFake = &fakeErr{}
 type fakeErr struct{}
 
 func (*fakeErr) Error() string { return "fake failure" }
+
+func TestScanReposFollowsSymlinkedClones(t *testing.T) {
+	clones := t.TempDir()
+	repo := filepath.Join(clones, "shopnest")
+	if err := os.MkdirAll(filepath.Join(repo, ".git"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	config := "[remote \"origin\"]\n\turl = git@github.com:asumaran/shopnest.git\n"
+	if err := os.WriteFile(filepath.Join(repo, ".git", "config"), []byte(config), 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	root := t.TempDir()
+	link := filepath.Join(root, "shopnest")
+	if err := os.Symlink(repo, link); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.Symlink(filepath.Join(clones, "missing"), filepath.Join(root, "dangling")); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(root, "notes.txt"), []byte("x"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	repos, _ := scanRepos(root, repoScanCache{})
+	if len(repos) != 1 {
+		t.Fatalf("want 1 repo through the symlink, got %d: %+v", len(repos), repos)
+	}
+	if repos[0].Slug != "asumaran/shopnest" || repos[0].Path != link || repos[0].Name != "shopnest" {
+		t.Errorf("unexpected repo: %+v", repos[0])
+	}
+}

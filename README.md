@@ -11,6 +11,8 @@ description. Selecting a PR lands you on its checkout:
   when the tree is dirty — and the repo is selected in the sidebar (added when
   missing).
 
+![gotopr demo: popup over herdr listing open PRs with a preview, fuzzy search, jump to the PR's worktree](docs/demo.gif)
+
 Sibling of [herdr-goto](https://github.com/asumaran/herdr-goto): same
 open-pick-exit popup pattern, same fuzzy search feel, but the universe is
 your PRs on GitHub instead of the workspaces already in herdr.
@@ -81,6 +83,15 @@ Runtime state (`prcache.json`, `repos.json`) lives in
 `HERDR_PLUGIN_STATE_DIR`; standalone runs fall back to
 `~/.config/herdr/gotopr-tui/`. `GOTOPR_ROOT` overrides the `~/Developer` scan
 root (used by tests).
+
+## Demo recording
+
+`docs/demo.gif` is recorded with
+[herdr-demokit](https://github.com/asumaran/herdr-demokit): `herdr-demo
+record` from the repo root replays `scripts/demo/keys.json` against an
+isolated herdr session described by `scripts/demo/scenario.sh`. The scenario
+points `GOTOPR_ROOT` at a throwaway directory of symlinks to personal repos,
+so only those PRs show up; the scan follows symlinked clones for that reason.
 
 ## Releasing
 

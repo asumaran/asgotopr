@@ -1,0 +1,15 @@
+[
+  ["wait", 3.0],
+  ["prefix", "d"],
+  ["wait", 3.0],
+  ["type", "access"],
+  ["wait", 1.6],
+  ["key", "enter"],
+
+  ["wait", 2.4],
+  ["prefix", "d"],
+  ["wait", 2.2],
+  ["type", "hasprod"],
+  ["wait", 1.6],
+  ["key", "enter"]
+]
