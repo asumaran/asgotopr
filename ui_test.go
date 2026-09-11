@@ -42,6 +42,10 @@ func testModel(t *testing.T) model {
 	m.applyFilter()
 	m.resize()
 	m.renderList()
+	// Each wheel event in the tests is its own gesture unless a test installs
+	// its own clock.
+	t0 := time.Unix(1000, 0)
+	m.now = func() time.Time { t0 = t0.Add(time.Second); return t0 }
 	return m
 }
 
@@ -186,5 +190,35 @@ func TestBackgroundColorFlipsPreviewStyle(t *testing.T) {
 	res, _ = testModel(t).Update(tea.BackgroundColorMsg{Color: lipgloss.Color("#000000")})
 	if res.(model).previewStyle != "dark" {
 		t.Errorf("dark background: style = %q", res.(model).previewStyle)
+	}
+}
+
+func TestWheelGestureStaysOnStartingColumn(t *testing.T) {
+	m := testModel(t)
+	m.prevVP.SetContent(strings.Repeat("line\n", 100))
+	clock := time.Unix(1000, 0)
+	m.now = func() time.Time { return clock }
+	first := m.cursor
+	// Gesture starts over the preview...
+	res, _ := m.Update(wheelDown(m.listW() + 10))
+	m = res.(model)
+	// ...then inertial events arrive over the list 50ms apart: they must keep
+	// scrolling the preview, not move the selection.
+	for i := 0; i < 5; i++ {
+		clock = clock.Add(50 * time.Millisecond)
+		res, _ = m.Update(wheelDown(2))
+		m = res.(model)
+	}
+	if m.cursor != first {
+		t.Errorf("inertia spilled into the list: cursor %d -> %d", first, m.cursor)
+	}
+	if m.prevVP.YOffset() < 6*3 {
+		t.Errorf("preview did not get the whole gesture: YOffset=%d", m.prevVP.YOffset())
+	}
+	// After a pause the next event starts a new gesture over the list.
+	clock = clock.Add(wheelGestureGap + time.Millisecond)
+	res, _ = m.Update(wheelDown(2))
+	if got := res.(model).cursor; got == first {
+		t.Errorf("new gesture over the list did not move the selection")
 	}
 }
