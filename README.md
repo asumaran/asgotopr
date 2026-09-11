@@ -46,8 +46,8 @@ title, the head branch, the PR number (`1234` finds `#1234`), the Jira ticket
 key in branch/title, and the repo name. `↑/↓` (or `ctrl+p`/`ctrl+n`) move
 between PRs, `shift+↓`/`shift+↑` (or PgDn/PgUp) scroll the description
 preview, `enter` opens the selected PR's checkout, `esc` closes. The mouse
-wheel moves the selection when over the list and scrolls the description when
-over the preview; clicking a PR selects it (enter still opens it).
+wheel scrolls the description wherever the pointer is; clicking a PR selects
+it (enter still opens it).
 
 When the PR's branch needs a checkout switch and the working tree has
 uncommitted changes, gotopr offers: `[s]` stash & switch (stash message

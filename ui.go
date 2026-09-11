@@ -140,15 +140,6 @@ type model struct {
 	renders map[string]string
 	prevKey string
 
-	// wheel gesture latch: the column that received the first wheel event of
-	// a gesture keeps every event that follows within wheelGestureGap, so
-	// trackpad inertia does not spill into the other column when the pointer
-	// moves mid-scroll. wheelOnList is the latched column; lastWheel the time
-	// of the previous event; now is swappable for tests.
-	wheelOnList bool
-	lastWheel   time.Time
-	now         func() time.Time
-
 	// previewStyle is the glamour standard style ("dark"/"light"). It starts
 	// as "dark" and flips when the terminal answers RequestBackgroundColor.
 	previewStyle string
@@ -606,46 +597,19 @@ func (m model) handleKey(msg tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 	return m, tea.Batch(cmd, m.updatePreview())
 }
 
-// wheelGestureGap is the pause that ends a wheel gesture. macOS trackpads
-// keep emitting inertial wheel events for a while after the fingers lift,
-// typically well under this gap apart.
-const wheelGestureGap = 250 * time.Millisecond
-
-// handleMouse routes wheel events to the column under the pointer, so the
-// two columns scroll independently. Over the list the wheel moves the
-// selection one PR per notch (the list usually fits the popup, so scrolling
-// its viewport alone would be invisible); over the preview it scrolls the
-// description. The target column is latched for the whole gesture (see
-// wheelGestureGap). Outside modeFilter the wheel is ignored (and the view
-// stops requesting mouse reports at all).
+// handleMouse sends every wheel event to the description preview, wherever
+// the pointer is. Routing by column was tried and dropped: SGR mouse reports
+// carry no gesture phase, so trackpad inertia that starts over one column and
+// drifts over the other cannot be told apart from a new gesture, and any
+// time-based latch misroutes one case or the other. The list is driven by
+// the keys and by clicking a row. Outside modeFilter the wheel is ignored
+// (and the view stops requesting mouse reports at all).
 func (m model) handleMouse(msg tea.MouseWheelMsg) (tea.Model, tea.Cmd) {
 	if m.mode != modeFilter {
 		return m, nil
 	}
-	now := time.Now()
-	if m.now != nil {
-		now = m.now()
-	}
-	if m.lastWheel.IsZero() || now.Sub(m.lastWheel) > wheelGestureGap {
-		m.wheelOnList = msg.X < m.listW()+2 // list column plus its half of the gutter
-	}
-	m.lastWheel = now
-	if !m.wheelOnList {
-		m.prevVP, _ = m.prevVP.Update(msg)
-		return m, nil
-	}
-	var dir int
-	switch msg.Button {
-	case tea.MouseWheelUp:
-		dir = -1
-	case tea.MouseWheelDown:
-		dir = +1
-	default:
-		return m, nil
-	}
-	m.cursor = nextPR(m.rows, m.cursor, dir)
-	m.renderList()
-	return m, m.updatePreview()
+	m.prevVP, _ = m.prevVP.Update(msg)
+	return m, nil
 }
 
 // handleClick moves the selection to the PR row under a left click on the

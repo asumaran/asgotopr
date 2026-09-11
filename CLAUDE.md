@@ -106,19 +106,15 @@ Keybinding (user config): `prefix+d` / `ctrl+alt+d` → `plugin_action`
   (renders carry the style they used and stale ones are dropped). Don't call
   glamour's `WithAutoStyle` or lipgloss's `HasDarkBackground` from inside the
   program: their OSC reply would race the input reader.
-- **Mouse**: the wheel scrolls whichever column is under the pointer
-  (`handleMouse` routes `tea.MouseWheelMsg` by X: `x < listW()+2` is the list
-  plus its half of the gutter, else the preview). Wheel over the list moves
-  the selection one PR per notch (`nextPR`, same as the arrow keys), so the
-  preview follows; a viewport-only scroll would be invisible because the
-  list usually fits the popup. Wheel over the preview scrolls the
-  description. The target column is latched per gesture: events closer than
-  `wheelGestureGap` (250ms) to the previous one keep going to the column
-  where the gesture started, so trackpad inertia does not spill into the
-  other column when the pointer moves mid-scroll. A left click on a list row moves the selection there
+- **Mouse**: the wheel always scrolls the description preview, wherever the
+  pointer is. Routing by column (and a per-gesture latch to survive trackpad
+  inertia) was tried and dropped: SGR reports carry no gesture phase, so
+  inertia drifting over the other column is indistinguishable from a new
+  gesture and every time-based heuristic misroutes one of the two. The list
+  is driven by the keys; a left click on a list row moves the selection there
   (`handleClick`: row = Y-1 + list YOffset) and never opens the PR; opening
-  stays on enter. The mouse mode is declared per frame in
-  `View()` (`MouseModeCellMotion` in modeFilter, `MouseModeNone` in the
+  stays on enter. The mouse mode is declared per frame in `View()`
+  (`MouseModeCellMotion` in modeFilter, `MouseModeNone` in the
   confirm/busy/error dialogs). v2's input parser reassembles SGR reports split
   across reads, so fast wheel bursts never leak into the filter (v1 needed a
   workaround for that).

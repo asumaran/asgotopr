@@ -43,10 +43,6 @@ func testModel(t *testing.T) model {
 	m.applyFilter()
 	m.resize()
 	m.renderList()
-	// Each wheel event in the tests is its own gesture unless a test installs
-	// its own clock.
-	t0 := time.Unix(1000, 0)
-	m.now = func() time.Time { t0 = t0.Add(time.Second); return t0 }
 	return m
 }
 
@@ -119,38 +115,32 @@ func wheelUp(x int) tea.MouseWheelMsg {
 	return tea.MouseWheelMsg{X: x, Y: 5, Button: tea.MouseWheelUp}
 }
 
-func TestMouseWheelScrollsColumnsIndependently(t *testing.T) {
+func TestMouseWheelScrollsPreviewFromEitherColumn(t *testing.T) {
 	m := testModel(t)
 	m.prevVP.SetContent(strings.Repeat("line\n", 100))
 	first := m.cursor
-	res, _ := m.Update(wheelDown(2))
+	res, _ := m.Update(wheelDown(2)) // pointer over the list
 	m = res.(model)
-	if m.cursor == first || m.prevVP.YOffset() != 0 {
-		t.Errorf("wheel over list: cursor=%d (was %d) preview=%d, want cursor moved and preview=0", m.cursor, first, m.prevVP.YOffset())
+	if m.cursor != first || m.prevVP.YOffset() == 0 {
+		t.Errorf("wheel over list: cursor=%d (was %d) preview=%d, want cursor unchanged and preview>0", m.cursor, first, m.prevVP.YOffset())
 	}
-	cur := m.cursor
-	m.prevVP.SetContent(strings.Repeat("line\n", 100)) // selection change reset the preview
-	res, _ = m.Update(wheelDown(m.listW() + 10))
+	before := m.prevVP.YOffset()
+	res, _ = m.Update(wheelDown(m.listW() + 10)) // pointer over the preview
 	m = res.(model)
-	if m.prevVP.YOffset() == 0 || m.cursor != cur {
-		t.Errorf("wheel over preview: cursor=%d preview=%d, want cursor=%d preview>0", m.cursor, m.prevVP.YOffset(), cur)
+	if m.prevVP.YOffset() <= before || m.cursor != first {
+		t.Errorf("wheel over preview: cursor=%d preview=%d, want cursor=%d preview>%d", m.cursor, m.prevVP.YOffset(), first, before)
 	}
 	res, _ = m.Update(wheelUp(2))
-	if got := res.(model).cursor; got != first {
-		t.Errorf("wheel up over list: cursor=%d, want back to %d", got, first)
+	after := res.(model)
+	if after.prevVP.YOffset() >= m.prevVP.YOffset() {
+		t.Errorf("wheel up did not scroll the preview back: %d -> %d", m.prevVP.YOffset(), after.prevVP.YOffset())
 	}
 }
 
 func TestMouseWheelBurstNeverTypesIntoFilter(t *testing.T) {
 	m := testModel(t)
 	m.prevVP.SetContent(strings.Repeat("line\n", 100))
-	last := m.cursor
-	for i := len(m.rows) - 1; i >= 0; i-- {
-		if m.rows[i].kind == "pr" {
-			last = i
-			break
-		}
-	}
+	first := m.cursor
 	var mm tea.Model = m
 	for i := 0; i < 200; i++ {
 		x := 2
@@ -163,8 +153,11 @@ func TestMouseWheelBurstNeverTypesIntoFilter(t *testing.T) {
 	if got.ti.Value() != "" {
 		t.Errorf("filter got mouse text %q", got.ti.Value())
 	}
-	if got.cursor != last {
-		t.Errorf("burst did not move the selection to the last PR: cursor=%d want %d", got.cursor, last)
+	if got.cursor != first {
+		t.Errorf("burst moved the selection: cursor=%d want %d", got.cursor, first)
+	}
+	if got.prevVP.YOffset() == 0 {
+		t.Errorf("burst did not scroll the preview")
 	}
 }
 
@@ -246,35 +239,5 @@ func TestMouseClickSelectsRowWithoutOpening(t *testing.T) {
 	res, _ = got.Update(tea.MouseClickMsg{X: 3, Y: 2, Button: tea.MouseRight})
 	if res.(model).cursor != got.cursor {
 		t.Errorf("right click moved the cursor")
-	}
-}
-
-func TestWheelGestureStaysOnStartingColumn(t *testing.T) {
-	m := testModel(t)
-	m.prevVP.SetContent(strings.Repeat("line\n", 100))
-	clock := time.Unix(1000, 0)
-	m.now = func() time.Time { return clock }
-	first := m.cursor
-	// Gesture starts over the preview...
-	res, _ := m.Update(wheelDown(m.listW() + 10))
-	m = res.(model)
-	// ...then inertial events arrive over the list 50ms apart: they must keep
-	// scrolling the preview, not move the selection.
-	for i := 0; i < 5; i++ {
-		clock = clock.Add(50 * time.Millisecond)
-		res, _ = m.Update(wheelDown(2))
-		m = res.(model)
-	}
-	if m.cursor != first {
-		t.Errorf("inertia spilled into the list: cursor %d -> %d", first, m.cursor)
-	}
-	if m.prevVP.YOffset() < 6*3 {
-		t.Errorf("preview did not get the whole gesture: YOffset=%d", m.prevVP.YOffset())
-	}
-	// After a pause the next event starts a new gesture over the list.
-	clock = clock.Add(wheelGestureGap + time.Millisecond)
-	res, _ = m.Update(wheelDown(2))
-	if got := res.(model).cursor; got == first {
-		t.Errorf("new gesture over the list did not move the selection")
 	}
 }
