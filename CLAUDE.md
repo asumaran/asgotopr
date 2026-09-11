@@ -114,12 +114,15 @@ Keybinding (user config): `prefix+d` / `ctrl+alt+d` → `plugin_action`
 ## Testing
 
 Unit tests cover the pure logic (parsing, merge/dedup, invalidation, ranking,
-grouping, mode transitions, View content). For end-to-end TUI verification
-without a TTY there is a pty driver pattern (answer OSC 10/11 + CSI 6n + DA1
-queries, replay keystrokes, assert on captured frames / a fake
-`HERDR_BIN_PATH` argv log) — see herdr-goto's `scripts/demo/driver.py` for
-the reference implementation. `GOTOPR_ROOT` + `HERDR_PLUGIN_STATE_DIR` +
-`HERDR_BIN_PATH` make the whole flow sandboxable against a throwaway repo.
+grouping, mode transitions, View content, wheel routing, background-color
+style flip). For end-to-end TUI verification without a TTY,
+`scripts/pty-check.py ./gotopr [dark|light]` (python3 + `pyte`) spawns the
+binary on a pty, answers the OSC 10/11 + CSI 6n + DA1 queries, replays
+keystrokes and SGR wheel bursts, and asserts on pyte-rendered frames (prompt
+stays clean, each column scrolls on its own, keys unchanged, clean exit). It
+runs against a throwaway sandbox (`GOTOPR_ROOT` of fake clones, a synthetic
+`prcache.json` in `HERDR_PLUGIN_STATE_DIR`, a fake `HERDR_BIN_PATH` that logs
+argv) and never touches the real plugin state.
 
 ## Commits & branches
 
