@@ -1,3 +1,19 @@
+## v0.3.0 (2026-09-11)
+
+* docs: re-record the demo GIF (a390675)
+* chore(plugin): raise the popup height to 90% (5a9c737)
+* feat(ui): open the selected PR in the browser (9e089dc)
+* fix(ui): scroll only the preview with the wheel (6f9f98f)
+* feat(preview): show labels, checks and review state (07395b4)
+* feat(ui): extend the selected row across the list (5138b4c)
+* feat(ui): select a PR with a left click (ffd785c)
+* fix(ui): latch the wheel target column per gesture (fea9bc6)
+* feat(ui): move the selection with the mouse wheel (8a71118)
+* test: add pty driver for end-to-end TUI checks (09f78ef)
+* feat(ui): scroll columns independently with the mouse wheel (fde966b)
+* refactor(ui): migrate to bubbletea v2 (1c6d7e5)
+* feat(demo): add scripted README demo GIF (5c9f79f)
+
 ## v0.2.0 (2026-08-05)
 
 * feat(ui): widen preview pane to a 30/70 list/preview split (1a01111)
