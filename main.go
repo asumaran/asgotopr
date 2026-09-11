@@ -16,11 +16,11 @@ import (
 	"strings"
 	"time"
 
-	"github.com/charmbracelet/bubbles/help"
-	"github.com/charmbracelet/bubbles/textinput"
-	"github.com/charmbracelet/bubbles/viewport"
-	tea "github.com/charmbracelet/bubbletea"
-	"github.com/charmbracelet/lipgloss"
+	"charm.land/bubbles/v2/help"
+	"charm.land/bubbles/v2/textinput"
+	"charm.land/bubbles/v2/viewport"
+	tea "charm.land/bubbletea/v2"
+	"charm.land/lipgloss/v2"
 )
 
 // version is the release tag; overridden at build time via
@@ -49,28 +49,18 @@ func main() {
 		return
 	}
 
-	// Terminal background detection must happen before the program owns
-	// stdin; see the glamourStyle comment in preview.go.
-	if !lipgloss.HasDarkBackground() {
-		glamourStyle = "light"
-	}
-
-	ti := textinput.New()
-	ti.Prompt = promptText()
-	ti.PromptStyle = lipgloss.NewStyle() // colors are already baked into the prompt
-	ti.Focus()
-
 	m := model{
 		slugs:           slugs,
 		cache:           cache,
 		refreshing:      stale,
 		pendingSearches: 2,
-		ti:              ti,
-		listVP:          viewport.New(50, 20),
-		prevVP:          viewport.New(40, 17),
+		ti:              newFilterInput(),
+		listVP:          viewport.New(viewport.WithWidth(50), viewport.WithHeight(20)),
+		prevVP:          viewport.New(viewport.WithWidth(40), viewport.WithHeight(17)),
 		help:            help.New(),
 		keys:            defaultKeys(),
 		renders:         map[string]string{},
+		previewStyle:    "dark",
 		width:           94,
 		height:          24,
 	}
@@ -82,12 +72,27 @@ func main() {
 	m.resize()
 	m.renderList()
 
-	res, err := tea.NewProgram(m, tea.WithAltScreen()).Run()
+	// Alt screen and mouse mode are declared per frame by View().
+	res, err := tea.NewProgram(m).Run()
 	if err != nil {
 		fmt.Fprintln(os.Stderr, err)
 		os.Exit(1)
 	}
 	runAction(res.(model).action)
+}
+
+// newFilterInput builds the focused filter textinput with the gotopr prompt.
+// The prompt string already carries its colors, so the prompt style is left
+// empty.
+func newFilterInput() textinput.Model {
+	ti := textinput.New()
+	ti.Prompt = promptText()
+	st := ti.Styles()
+	st.Focused.Prompt = lipgloss.NewStyle()
+	st.Blurred.Prompt = lipgloss.NewStyle()
+	ti.SetStyles(st)
+	ti.Focus()
+	return ti
 }
 
 // runDump prints the discovered state without a TUI: repos, grouped PRs with

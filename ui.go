@@ -13,12 +13,12 @@ import (
 	"strings"
 	"time"
 
-	"github.com/charmbracelet/bubbles/help"
-	"github.com/charmbracelet/bubbles/key"
-	"github.com/charmbracelet/bubbles/textinput"
-	"github.com/charmbracelet/bubbles/viewport"
-	tea "github.com/charmbracelet/bubbletea"
-	"github.com/charmbracelet/lipgloss"
+	"charm.land/bubbles/v2/help"
+	"charm.land/bubbles/v2/key"
+	"charm.land/bubbles/v2/textinput"
+	"charm.land/bubbles/v2/viewport"
+	tea "charm.land/bubbletea/v2"
+	"charm.land/lipgloss/v2"
 	"github.com/charmbracelet/x/ansi"
 )
 
@@ -132,6 +132,10 @@ type model struct {
 	renders map[string]string
 	prevKey string
 
+	// previewStyle is the glamour standard style ("dark"/"light"). It starts
+	// as "dark" and flips when the terminal answers RequestBackgroundColor.
+	previewStyle string
+
 	action []string // herdr CLI args to run after quit (nil = none)
 }
 
@@ -167,14 +171,15 @@ func (m *model) bodyH() int {
 }
 
 func (m *model) resize() {
-	m.listVP.Width = m.listW()
-	m.listVP.Height = m.bodyH()
-	m.prevVP.Width = m.prevW()
-	m.prevVP.Height = m.bodyH() - 3 // preview header (2 lines) + blank
-	if m.prevVP.Height < 1 {
-		m.prevVP.Height = 1
+	m.listVP.SetWidth(m.listW())
+	m.listVP.SetHeight(m.bodyH())
+	m.prevVP.SetWidth(m.prevW())
+	prevH := m.bodyH() - 3 // preview header (2 lines) + blank
+	if prevH < 1 {
+		prevH = 1
 	}
-	m.help.Width = m.width
+	m.prevVP.SetHeight(prevH)
+	m.help.SetWidth(m.width)
 }
 
 func (m *model) setEntries(prs []prItem) {
@@ -277,13 +282,13 @@ func highlight(label string, idx []int) string {
 }
 
 func (m *model) ensureVisible() {
-	h := m.listVP.Height
+	h := m.listVP.Height()
 	if h <= 0 || m.cursor < 0 {
 		return
 	}
-	if m.cursor < m.listVP.YOffset {
+	if m.cursor < m.listVP.YOffset() {
 		m.listVP.SetYOffset(m.cursor)
-	} else if m.cursor >= m.listVP.YOffset+h {
+	} else if m.cursor >= m.listVP.YOffset()+h {
 		m.listVP.SetYOffset(m.cursor - h + 1)
 	}
 }
@@ -308,7 +313,20 @@ func (m *model) updatePreview() tea.Cmd {
 		return nil
 	}
 	m.prevVP.SetContent(stDim.Render("rendering…"))
-	return renderPreviewCmd(r.e.pr, m.prevW())
+	return renderPreviewCmd(r.e.pr, m.prevW(), m.previewStyle)
+}
+
+// setPreviewStyle switches the glamour style once the terminal background is
+// known. Cached renders carry the old palette, so they are dropped and the
+// current preview is rendered again.
+func (m *model) setPreviewStyle(style string) tea.Cmd {
+	if style == m.previewStyle {
+		return nil
+	}
+	m.previewStyle = style
+	m.renders = map[string]string{}
+	m.prevKey = ""
+	return m.updatePreview()
 }
 
 // ---- refresh plumbing ----
@@ -369,7 +387,7 @@ func (m *model) startSwitch() tea.Cmd {
 // ---- bubbletea ----
 
 func (m model) Init() tea.Cmd {
-	cmds := []tea.Cmd{textinput.Blink}
+	cmds := []tea.Cmd{textinput.Blink, tea.RequestBackgroundColor}
 	if m.refreshing {
 		cmds = append(cmds, fetchSearchCmd("author"), fetchSearchCmd("assignee"))
 	}
@@ -386,6 +404,13 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		m.resize()
 		m.renderList()
 		return m, m.updatePreview()
+
+	case tea.BackgroundColorMsg:
+		style := "dark"
+		if !msg.IsDark() {
+			style = "light"
+		}
+		return m, m.setPreviewStyle(style)
 
 	case searchMsg:
 		m.pendingSearches--
@@ -422,6 +447,9 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		return m, m.finishRefresh(applyBodies(merged, msg.bodies), true)
 
 	case previewMsg:
+		if msg.style != m.previewStyle { // rendered before the style flipped
+			return m, nil
+		}
 		if m.renders == nil {
 			m.renders = map[string]string{}
 		}
@@ -449,7 +477,7 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		m.action = []string{"worktree", "open", "--cwd", repo.Path, "--path", repo.Path, "--focus"}
 		return m, tea.Quit
 
-	case tea.KeyMsg:
+	case tea.KeyPressMsg:
 		return m.handleKey(msg)
 
 	default:
@@ -459,7 +487,7 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	}
 }
 
-func (m model) handleKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
+func (m model) handleKey(msg tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 	switch m.mode {
 	case modeConfirmStash:
 		switch msg.String() {
@@ -529,11 +557,13 @@ func (m model) handleKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 	return m, tea.Batch(cmd, m.updatePreview())
 }
 
-func (m model) View() string {
+func (m model) View() tea.View {
 	right := m.rightColumn()
 	sep := stDim.Render(strings.TrimRight(strings.Repeat("│\n", m.bodyH()), "\n"))
 	body := lipgloss.JoinHorizontal(lipgloss.Top, m.listVP.View(), " ", sep, " ", right)
-	return m.ti.View() + "\n" + body + "\n" + m.footer()
+	v := tea.NewView(m.ti.View() + "\n" + body + "\n" + m.footer())
+	v.AltScreen = true
+	return v
 }
 
 func (m model) rightColumn() string {

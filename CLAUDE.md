@@ -19,11 +19,13 @@ attaches `gotopr-darwin-arm64`. There is no published library.
 
 ## Stack & layout
 
-Go single module, single `package main`, static binary. TUI: Bubble Tea +
-bubbles (`textinput`, `viewport`, `key`, `help`), `lipgloss`, `sahilm/fuzzy`
-for matching, `glamour` for the markdown preview. Files are split by concern
-but everything stays in `package main` (helpers were lifted from goto's
-single-file layout):
+Go single module, single `package main`, static binary. TUI: Bubble Tea v2 +
+bubbles v2 (`textinput`, `viewport`, `key`, `help`), lipgloss v2,
+`sahilm/fuzzy` for matching, glamour v2 for the markdown preview. The charm
+v2 modules are imported under their canonical `charm.land/<name>/v2` paths
+(the `github.com/charmbracelet/<name>/v2` spelling is rejected by `go get`).
+Files are split by concern but everything stays in `package main` (helpers
+were lifted from goto's single-file layout):
 
 - `main.go` — flags (`-version`, `-dump`, `-query`), model construction,
   `tea.NewProgram`, post-quit herdr exec, `runDump`.
@@ -39,7 +41,8 @@ single-file layout):
   debounce.
 - `filter.go` — entries, corpora, fuzzy hits, `matchBonus` ranking, row
   building, header-skipping navigation.
-- `ui.go` — the bubbletea model/Update/View, modes, selection flow, styles.
+- `ui.go` — the bubbletea model/Update/View, modes, selection flow, mouse
+  routing, styles.
 - `preview.go` — glamour rendering as a `tea.Cmd`, per-(URL,width,updatedAt)
   render cache, instant non-glamour header.
 - `confirm.go` — stash/switch/error flow: `performSwitchCmd`, `stashCmd`,
@@ -83,10 +86,16 @@ Keybinding (user config): `prefix+d` / `ctrl+alt+d` → `plugin_action`
   (covers forks) → `git switch` → `worktree open` on the repo root itself.
 - **Errors surface inside the TUI** (modeError); the herdr action runs only
   after quit, because quitting closes the popup and post-exit output is lost.
-- **Never query the terminal after the program starts**: glamour gets a fixed
-  style resolved via `lipgloss.HasDarkBackground()` in `main()` BEFORE
-  `tea.NewProgram`. `WithAutoStyle` at runtime races bubbletea's input reader
-  and the OSC reply gets typed into the filter as literal text.
+- **Never query the terminal behind bubbletea's back**: only the program
+  owns stdin, so `Init` issues `tea.RequestBackgroundColor()` and the
+  `tea.BackgroundColorMsg` reply picks the glamour style (`IsDark()` →
+  "dark"/"light"). Frames before the reply render with "dark"; when the style
+  flips, the render cache is cleared and the current preview re-renders
+  (renders carry the style they used and stale ones are dropped). Don't call
+  glamour's `WithAutoStyle` or lipgloss's `HasDarkBackground` from inside the
+  program: their OSC reply would race the input reader.
+- **Alt screen** is also declared per frame (`tea.View.AltScreen`); there is
+  no `tea.WithAltScreen` program option in v2.
 - Same-origin twin clones: PR listed once under `primaryClone` (dir name ==
   remote repo name, else lexicographic); no per-clone duplicate rows.
 - Search corpus: title + branch + `#number`/ticket/slug/dirname metas; exact

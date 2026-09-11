@@ -12,12 +12,13 @@ import (
 	"strings"
 	"time"
 
-	tea "github.com/charmbracelet/bubbletea"
-	"github.com/charmbracelet/glamour"
+	tea "charm.land/bubbletea/v2"
+	"charm.land/glamour/v2"
 )
 
 type previewMsg struct {
 	key     string
+	style   string // glamour style the render used; dropped if it changed since
 	content string
 }
 
@@ -25,30 +26,28 @@ func previewKey(pr prItem, width int) string {
 	return pr.URL + "|" + strconv.Itoa(width) + "|" + strconv.FormatInt(pr.UpdatedAt.Unix(), 10)
 }
 
-func renderPreviewCmd(pr prItem, width int) tea.Cmd {
+func renderPreviewCmd(pr prItem, width int, style string) tea.Cmd {
 	key := previewKey(pr, width)
 	body := pr.Body
 	return func() tea.Msg {
-		content, err := renderMarkdown(body, width)
+		content, err := renderMarkdown(body, width, style)
 		if err != nil {
 			content = body // raw markdown beats nothing
 		}
-		return previewMsg{key: key, content: content}
+		return previewMsg{key: key, style: style, content: content}
 	}
 }
 
-// glamourStyle is decided once in main() BEFORE the bubbletea program starts.
-// glamour's WithAutoStyle queries the terminal for its background color; done
-// after startup that reply races bubbletea's input reader and ends up typed
-// into the filter as literal "rgb:..." text.
-var glamourStyle = "dark"
-
-func renderMarkdown(body string, width int) (string, error) {
+// renderMarkdown renders with a fixed glamour standard style ("dark" or
+// "light"). The style is never auto-detected here: bubbletea owns the
+// terminal, so the model asks it for the background color (Init →
+// RequestBackgroundColor) and passes the answer down.
+func renderMarkdown(body string, width int, style string) (string, error) {
 	if strings.TrimSpace(body) == "" {
 		return stDim.Render("(no description)"), nil
 	}
 	r, err := glamour.NewTermRenderer(
-		glamour.WithStandardStyle(glamourStyle),
+		glamour.WithStandardStyle(style),
 		glamour.WithWordWrap(width),
 		glamour.WithEmoji(),
 	)
