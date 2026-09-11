@@ -10,6 +10,7 @@ import (
 	"charm.land/bubbles/v2/viewport"
 	tea "charm.land/bubbletea/v2"
 	"charm.land/lipgloss/v2"
+	"github.com/charmbracelet/x/ansi"
 )
 
 func testModel(t *testing.T) model {
@@ -47,6 +48,30 @@ func testModel(t *testing.T) model {
 	t0 := time.Unix(1000, 0)
 	m.now = func() time.Time { t0 = t0.Add(time.Second); return t0 }
 	return m
+}
+
+func TestSelectedRowSpansListWidth(t *testing.T) {
+	m := testModel(t)
+	w := m.listW()
+	r := m.rows[m.cursor]
+	got := m.rowLine(r, true, m.prNumW(), w)
+	if n := ansi.StringWidth(got); n != w {
+		t.Errorf("selected row width = %d, want %d: %q", n, w, got)
+	}
+	if !strings.HasSuffix(ansi.Strip(got), " ") {
+		t.Errorf("selected row not padded to the column: %q", ansi.Strip(got))
+	}
+	// A title longer than the column is cut, never wrapped past it.
+	r.e.pr.Title = strings.Repeat("x", 200)
+	got = m.rowLine(r, true, m.prNumW(), w)
+	if n := ansi.StringWidth(got); n != w {
+		t.Errorf("long selected row width = %d, want %d", n, w)
+	}
+	// Unselected rows are truncated to the column too.
+	got = m.rowLine(r, false, m.prNumW(), w)
+	if n := ansi.StringWidth(got); n != w {
+		t.Errorf("long unselected row width = %d, want %d", n, w)
+	}
 }
 
 func TestViewRendersRows(t *testing.T) {

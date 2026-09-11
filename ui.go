@@ -247,20 +247,27 @@ func (m *model) renderList() {
 		if i > 0 {
 			b.WriteString("\n")
 		}
-		b.WriteString(truncate(m.rowLine(r, i == m.cursor, numW), listW))
+		b.WriteString(m.rowLine(r, i == m.cursor, numW, listW))
 	}
 	m.listVP.SetContent(b.String())
 	m.ensureVisible()
 }
 
-func (m *model) rowLine(r row, selected bool, numW int) string {
+// rowLine renders one list row truncated to width. The selected row is
+// padded to the full width before styling so its background spans the whole
+// column instead of stopping at the end of the title.
+func (m *model) rowLine(r row, selected bool, numW, width int) string {
 	if r.kind == "header" {
-		return stHeader.Render(r.repo.Name)
+		return truncate(stHeader.Render(r.repo.Name), width)
 	}
 	num := "#" + strconv.Itoa(r.e.pr.Number)
 	pad := strings.Repeat(" ", numW-len(num))
 	if selected {
-		return stSel.Render("▌ " + num + pad + " " + r.e.pr.Title)
+		line := truncate("▌ "+num+pad+" "+r.e.pr.Title, width)
+		if n := width - ansi.StringWidth(line); n > 0 {
+			line += strings.Repeat(" ", n)
+		}
+		return stSel.Render(line)
 	}
 	numStyle := stPROpen
 	if r.e.pr.IsDraft {
@@ -270,7 +277,7 @@ func (m *model) rowLine(r row, selected bool, numW int) string {
 	if r.match && len(r.idx) > 0 {
 		title = highlight(title, r.idx)
 	}
-	return "  " + numStyle.Render(num) + pad + " " + title
+	return truncate("  "+numStyle.Render(num)+pad+" "+title, width)
 }
 
 // highlight styles the fuzzy-matched characters within a label.
