@@ -498,6 +498,9 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	case tea.MouseWheelMsg:
 		return m.handleMouse(msg)
 
+	case tea.MouseClickMsg:
+		return m.handleClick(msg)
+
 	default:
 		var cmd tea.Cmd
 		m.ti, cmd = m.ti.Update(msg)
@@ -613,6 +616,23 @@ func (m model) handleMouse(msg tea.MouseWheelMsg) (tea.Model, tea.Cmd) {
 		return m, nil
 	}
 	m.cursor = nextPR(m.rows, m.cursor, dir)
+	m.renderList()
+	return m, m.updatePreview()
+}
+
+// handleClick moves the selection to the PR row under a left click on the
+// list. It never opens the PR: that stays on enter, so a stray click cannot
+// switch branches. Screen row 0 is the filter input; the list viewport starts
+// on row 1 and is offset by its scroll position.
+func (m model) handleClick(msg tea.MouseClickMsg) (tea.Model, tea.Cmd) {
+	if m.mode != modeFilter || msg.Button != tea.MouseLeft || msg.X >= m.listW()+2 {
+		return m, nil
+	}
+	i := msg.Y - 1 + m.listVP.YOffset()
+	if msg.Y < 1 || i < 0 || i >= len(m.rows) || m.rows[i].kind != "pr" || i == m.cursor {
+		return m, nil
+	}
+	m.cursor = i
 	m.renderList()
 	return m, m.updatePreview()
 }

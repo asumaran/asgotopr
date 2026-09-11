@@ -193,6 +193,37 @@ func TestBackgroundColorFlipsPreviewStyle(t *testing.T) {
 	}
 }
 
+func TestMouseClickSelectsRowWithoutOpening(t *testing.T) {
+	m := testModel(t)
+	first := m.cursor
+	// rows: header(alpha) #100 header(beta) #7 → the second PR sits on row 3,
+	// which is screen line 4 (line 0 is the filter input).
+	click := func(x, y int) tea.MouseClickMsg {
+		return tea.MouseClickMsg{X: x, Y: y, Button: tea.MouseLeft}
+	}
+	res, cmd := m.Update(click(3, 4))
+	got := res.(model)
+	if got.cursor == first || got.currentRow() == nil || got.currentRow().e.pr.Number != 7 {
+		t.Fatalf("click did not select #7: cursor=%d", got.cursor)
+	}
+	_ = cmd
+	if got.action != nil {
+		t.Errorf("click queued an action: %v", got.action)
+	}
+	// Clicking a header or the preview column changes nothing.
+	for _, c := range []tea.MouseClickMsg{click(3, 3), click(got.listW()+10, 2)} {
+		res, _ = got.Update(c)
+		if res.(model).cursor != got.cursor {
+			t.Errorf("click %+v moved the cursor to %d", c, res.(model).cursor)
+		}
+	}
+	// Right click is ignored too.
+	res, _ = got.Update(tea.MouseClickMsg{X: 3, Y: 2, Button: tea.MouseRight})
+	if res.(model).cursor != got.cursor {
+		t.Errorf("right click moved the cursor")
+	}
+}
+
 func TestWheelGestureStaysOnStartingColumn(t *testing.T) {
 	m := testModel(t)
 	m.prevVP.SetContent(strings.Repeat("line\n", 100))

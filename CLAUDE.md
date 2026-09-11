@@ -103,7 +103,9 @@ Keybinding (user config): `prefix+d` / `ctrl+alt+d` → `plugin_action`
   description. The target column is latched per gesture: events closer than
   `wheelGestureGap` (250ms) to the previous one keep going to the column
   where the gesture started, so trackpad inertia does not spill into the
-  other column when the pointer moves mid-scroll. The mouse mode is declared per frame in
+  other column when the pointer moves mid-scroll. A left click on a list row moves the selection there
+  (`handleClick`: row = Y-1 + list YOffset) and never opens the PR; opening
+  stays on enter. The mouse mode is declared per frame in
   `View()` (`MouseModeCellMotion` in modeFilter, `MouseModeNone` in the
   confirm/busy/error dialogs). v2's input parser reassembles SGR reports split
   across reads, so fast wheel bursts never leak into the filter (v1 needed a

@@ -150,6 +150,19 @@ f4 = frame(); dump("after down arrow", f4)
 check(any("\u258c #103" in l for l in left(f4)), "down arrow moves to the second PR (#103)")
 check("#103" in right(f4)[1], "preview header shows #103")
 
+# 4b. left click on a list row selects it without opening; header/preview clicks are inert
+send(b"\x1b[<0;5;5M\x1b[<0;5;5m"); pump(0.5)   # press+release on screen line 5 (row 4 of the list)
+f4b = frame(); dump("after click on list row 4", f4b)
+clicked = [l for l in left(f4b) if "\u258c" in l]
+check(len(clicked) == 1 and "#103" not in clicked[0], "click moved the selection off #103: %r" % (clicked[:1],))
+check(clicked and clicked[0].split()[1] in right(f4b)[1], "preview header follows the clicked PR")
+send(b"\x1b[<0;5;2M\x1b[<0;5;2m"); pump(0.4)   # screen line 2 is the first group header
+f4c = frame()
+check(left(f4c) == left(f4b), "click on a header changes nothing")
+send(b"\x1b[<0;70;5M\x1b[<0;70;5m"); pump(0.4)
+f4d = frame()
+check(left(f4d) == left(f4b), "click on the preview changes nothing")
+
 # 5. typing still filters; backspace clears
 send(b"gamma"); pump(0.5)
 f5 = frame(); dump("after typing 'gamma'", f5)
@@ -165,7 +178,7 @@ f7 = frame()
 check(right(f7)[3:] != right(f6)[3:], "shift+down scrolls the preview")
 
 # 7. garbage scan over every frame captured so far
-allframes = "\n".join("\n".join(f) for f in (f0, f1, f2, f3, f3b, f4, f5, f6, f7))
+allframes = "\n".join("\n".join(f) for f in (f0, f1, f2, f3, f3b, f4, f4b, f4c, f4d, f5, f6, f7))
 check("<6" not in allframes and "rgb:" not in allframes and "[<" not in allframes, "no mouse/OSC garbage in any frame")
 
 # 8. esc quits cleanly, mouse modes reset, no herdr action
