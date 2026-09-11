@@ -2,8 +2,9 @@
 
 A [herdr](https://github.com/asumaran/herdr) plugin popup that lists your open
 GitHub PRs (author or assignee) across the repos cloned under `~/Developer`,
-grouped by repo, with fuzzy search and a markdown preview of the PR
-description. Selecting a PR lands you on its checkout:
+grouped by repo, with fuzzy search and a preview of each PR: labels, CI
+checks, review state, diff size and the rendered markdown description.
+Selecting a PR lands you on its checkout:
 
 - an existing worktree for the PR's branch is opened/focused in the herdr
   sidebar (added when missing);

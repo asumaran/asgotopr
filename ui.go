@@ -54,6 +54,14 @@ var (
 	stKeyHint = lipgloss.NewStyle().Foreground(lipgloss.Color("11"))
 	stPROpen  = lipgloss.NewStyle().Foreground(lipgloss.Color("10"))
 	stPRDraft = lipgloss.NewStyle().Foreground(lipgloss.Color("8"))
+
+	// preview header facts
+	stFactKey    = lipgloss.NewStyle().Foreground(lipgloss.Color("8"))
+	stOK         = lipgloss.NewStyle().Foreground(lipgloss.Color("10"))
+	stBad        = lipgloss.NewStyle().Foreground(lipgloss.Color("9"))
+	stWarn       = lipgloss.NewStyle().Foreground(lipgloss.Color("11"))
+	stBadgeDraft = lipgloss.NewStyle().Background(lipgloss.Color("3")).Foreground(lipgloss.Color("0")).Bold(true).Padding(0, 1)
+	stBadgeBad   = lipgloss.NewStyle().Background(lipgloss.Color("1")).Foreground(lipgloss.Color("15")).Bold(true).Padding(0, 1)
 )
 
 // ---- key bindings ----
@@ -183,12 +191,24 @@ func (m *model) resize() {
 	m.listVP.SetWidth(m.listW())
 	m.listVP.SetHeight(m.bodyH())
 	m.prevVP.SetWidth(m.prevW())
-	prevH := m.bodyH() - 3 // preview header (2 lines) + blank
+	m.syncPreviewHeight()
+	m.help.SetWidth(m.width)
+}
+
+// syncPreviewHeight fits the body viewport under the header of the selected
+// PR. The header height varies (labels wrap, failed checks add a line) and
+// changes on refresh without touching the preview key, so this runs on every
+// selection change and resize rather than being cached.
+func (m *model) syncPreviewHeight() {
+	hh := 0
+	if r := m.currentRow(); r != nil {
+		hh = lipgloss.Height(previewHeader(r.e.pr, m.prevW()))
+	}
+	prevH := m.bodyH() - hh
 	if prevH < 1 {
 		prevH = 1
 	}
 	m.prevVP.SetHeight(prevH)
-	m.help.SetWidth(m.width)
 }
 
 func (m *model) setEntries(prs []prItem) {
@@ -318,6 +338,7 @@ func (m *model) ensureVisible() {
 // ---- preview ----
 
 func (m *model) updatePreview() tea.Cmd {
+	m.syncPreviewHeight()
 	r := m.currentRow()
 	if r == nil {
 		m.prevKey = ""
@@ -677,7 +698,7 @@ func (m model) rightColumn() string {
 		}
 		return ""
 	}
-	return previewHeader(r.e.pr, w) + "\n\n" + m.prevVP.View()
+	return previewHeader(r.e.pr, w) + "\n" + m.prevVP.View()
 }
 
 func (m model) footer() string {

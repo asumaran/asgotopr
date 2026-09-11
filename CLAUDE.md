@@ -44,7 +44,8 @@ were lifted from goto's single-file layout):
 - `ui.go` — the bubbletea model/Update/View, modes, selection flow, mouse
   routing, styles.
 - `preview.go` — glamour rendering as a `tea.Cmd`, per-(URL,width,updatedAt)
-  render cache, instant non-glamour header.
+  render cache, instant non-glamour header (title, refs, label chips, and
+  aligned Checks/Review/Diff/Opened facts, then a rule).
 - `confirm.go` — stash/switch/error flow: `performSwitchCmd`, `stashCmd`,
   dialog views.
 - `scripts/demo/` — the demo scenario (`scenario.sh` + `keys.json`) that
@@ -73,7 +74,18 @@ Keybinding (user config): `prefix+d` / `ctrl+alt+d` → `plugin_action`
   in one aliased query only for PRs whose `updatedAt` moved past the cache
   (body edits always bump updatedAt, so it is a safe invalidation key). On a
   bodies-fetch failure the fresh list is shown but NOT persisted, so the next
-  run refetches instead of freezing empty bodies.
+  run refetches instead of freezing empty bodies. The header metadata (labels,
+  head-commit check rollup with per-context counts, reviewDecision, latest
+  approvals, pending review requests, mergeable, diff stats, comment/commit
+  counts, base ref, author, createdAt) rides on the search query itself:
+  checks and reviews do not bump `updatedAt`, so they are refetched on every
+  refresh instead of being invalidated. `-dump` prints a second line per PR
+  with checks/review/labels.
+- **Preview header height is dynamic**: labels wrap and failed checks add a
+  line, so `syncPreviewHeight` (called from `resize` and `updatePreview`)
+  measures `previewHeader` with `lipgloss.Height` and fits the body viewport
+  under it. It is not tied to the preview key because a refresh can change the
+  header (new check results) without changing `updatedAt`.
 - **Caching**: stale-while-revalidate; first frame always renders from
   `prcache.json`; snapshots fresher than 60s skip the refresh. The repo scan
   caches parsed slugs keyed by `.git/config` mtime in `repos.json`.

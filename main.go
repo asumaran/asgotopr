@@ -136,6 +136,8 @@ func runDump(cache prCache, stale bool, repos []localRepo, slugs map[string][]lo
 		fmt.Printf("  #%-6d %-40s %s [%s] updated %s, body %dB (%s)\n",
 			e.pr.Number, truncate(e.pr.Title, 40), e.pr.HeadRefName,
 			strings.Join(e.pr.Roles, ","), relTime(e.pr.UpdatedAt), len(e.pr.Body), wt)
+		fmt.Printf("          checks %s, review %s, labels [%s]\n",
+			dumpChecks(e.pr.Checks), dumpReview(e.pr), strings.Join(labelNames(e.pr.Labels), " "))
 	}
 
 	if query != "" {
@@ -149,4 +151,28 @@ func runDump(cache prCache, stale bool, repos []localRepo, slugs map[string][]lo
 			fmt.Printf("  %5d  #%d %s\n", r.score, r.e.pr.Number, truncate(r.e.pr.Title, 60))
 		}
 	}
+}
+
+func dumpChecks(c checkSummary) string {
+	if c.State == "" {
+		return "none"
+	}
+	return fmt.Sprintf("%s (%d passed, %d failed, %d pending, %d skipped)",
+		strings.ToLower(c.State), c.Passed, c.Failed, c.Pending, c.Skipped)
+}
+
+func dumpReview(pr prItem) string {
+	d := strings.ToLower(pr.ReviewDecision)
+	if d == "" {
+		d = "no rule"
+	}
+	return fmt.Sprintf("%s (%d approvals, %d requested)", d, pr.Approvals, pr.ReviewRequests)
+}
+
+func labelNames(labels []prLabel) []string {
+	names := make([]string, len(labels))
+	for i, l := range labels {
+		names[i] = l.Name
+	}
+	return names
 }
