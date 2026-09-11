@@ -94,6 +94,15 @@ Keybinding (user config): `prefix+d` / `ctrl+alt+d` → `plugin_action`
   (renders carry the style they used and stale ones are dropped). Don't call
   glamour's `WithAutoStyle` or lipgloss's `HasDarkBackground` from inside the
   program: their OSC reply would race the input reader.
+- **Mouse**: the wheel scrolls whichever column is under the pointer
+  (`handleMouse` routes `tea.MouseWheelMsg` by X: `x < listW()+2` is the list
+  plus its half of the gutter, else the preview). Wheel over the list moves
+  only the viewport, never the cursor; the next arrow key snaps the cursor
+  back into view via `ensureVisible`. The mouse mode is declared per frame in
+  `View()` (`MouseModeCellMotion` in modeFilter, `MouseModeNone` in the
+  confirm/busy/error dialogs). v2's input parser reassembles SGR reports split
+  across reads, so fast wheel bursts never leak into the filter (v1 needed a
+  workaround for that).
 - **Alt screen** is also declared per frame (`tea.View.AltScreen`); there is
   no `tea.WithAltScreen` program option in v2.
 - Same-origin twin clones: PR listed once under `primaryClone` (dir name ==

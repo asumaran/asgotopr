@@ -82,6 +82,69 @@ func TestFilterNarrowsRows(t *testing.T) {
 	}
 }
 
+func wheelDown(x int) tea.MouseWheelMsg {
+	return tea.MouseWheelMsg{X: x, Y: 5, Button: tea.MouseWheelDown}
+}
+
+func TestMouseWheelScrollsColumnsIndependently(t *testing.T) {
+	m := testModel(t)
+	m.listVP.SetContent(strings.Repeat("row\n", 100))
+	m.prevVP.SetContent(strings.Repeat("line\n", 100))
+	res, _ := m.Update(wheelDown(2))
+	m = res.(model)
+	if m.listVP.YOffset() == 0 || m.prevVP.YOffset() != 0 {
+		t.Errorf("wheel over list: list=%d preview=%d, want list>0 preview=0", m.listVP.YOffset(), m.prevVP.YOffset())
+	}
+	listOff := m.listVP.YOffset()
+	res, _ = m.Update(wheelDown(m.listW() + 10))
+	m = res.(model)
+	if m.prevVP.YOffset() == 0 || m.listVP.YOffset() != listOff {
+		t.Errorf("wheel over preview: list=%d preview=%d, want list=%d preview>0", m.listVP.YOffset(), m.prevVP.YOffset(), listOff)
+	}
+	if m.cursor != firstPR(m.rows) {
+		t.Errorf("wheel moved the cursor to %d", m.cursor)
+	}
+}
+
+func TestMouseWheelBurstNeverTypesIntoFilter(t *testing.T) {
+	m := testModel(t)
+	m.listVP.SetContent(strings.Repeat("row\n", 100))
+	m.prevVP.SetContent(strings.Repeat("line\n", 100))
+	var mm tea.Model = m
+	for i := 0; i < 200; i++ {
+		x := 2
+		if i%2 == 1 {
+			x = m.listW() + 10
+		}
+		mm, _ = mm.Update(wheelDown(x))
+	}
+	got := mm.(model)
+	if got.ti.Value() != "" {
+		t.Errorf("filter got mouse text %q", got.ti.Value())
+	}
+	if got.listVP.YOffset() == 0 || got.prevVP.YOffset() == 0 {
+		t.Errorf("burst did not scroll: list=%d preview=%d", got.listVP.YOffset(), got.prevVP.YOffset())
+	}
+}
+
+func TestMouseWheelIgnoredOutsideFilterMode(t *testing.T) {
+	m := testModel(t)
+	m.listVP.SetContent(strings.Repeat("row\n", 100))
+	m.mode = modeConfirmStash
+	m.pending = m.currentRow().e
+	res, _ := m.Update(wheelDown(2))
+	got := res.(model)
+	if got.listVP.YOffset() != 0 {
+		t.Errorf("wheel scrolled the list in confirm mode: %d", got.listVP.YOffset())
+	}
+	if got.View().MouseMode != tea.MouseModeNone {
+		t.Errorf("confirm mode still requests mouse reports")
+	}
+	if testModel(t).View().MouseMode != tea.MouseModeCellMotion {
+		t.Errorf("filter mode does not request mouse reports")
+	}
+}
+
 func TestBackgroundColorFlipsPreviewStyle(t *testing.T) {
 	m := testModel(t)
 	m.renders["stale"] = "old palette"

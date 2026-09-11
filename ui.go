@@ -480,6 +480,9 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	case tea.KeyPressMsg:
 		return m.handleKey(msg)
 
+	case tea.MouseWheelMsg:
+		return m.handleMouse(msg)
+
 	default:
 		var cmd tea.Cmd
 		m.ti, cmd = m.ti.Update(msg)
@@ -557,12 +560,36 @@ func (m model) handleKey(msg tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 	return m, tea.Batch(cmd, m.updatePreview())
 }
 
+// handleMouse routes wheel events to the column under the pointer, so the
+// list and the preview scroll independently. Scrolling the list only moves
+// the viewport, never the cursor; the next cursor move snaps it back into
+// view (ensureVisible). Outside modeFilter the wheel is ignored (and the
+// view stops requesting mouse reports at all).
+func (m model) handleMouse(msg tea.MouseWheelMsg) (tea.Model, tea.Cmd) {
+	if m.mode != modeFilter {
+		return m, nil
+	}
+	if msg.X < m.listW()+2 { // list column plus its half of the gutter
+		m.listVP, _ = m.listVP.Update(msg)
+	} else {
+		m.prevVP, _ = m.prevVP.Update(msg)
+	}
+	return m, nil
+}
+
 func (m model) View() tea.View {
 	right := m.rightColumn()
 	sep := stDim.Render(strings.TrimRight(strings.Repeat("│\n", m.bodyH()), "\n"))
 	body := lipgloss.JoinHorizontal(lipgloss.Top, m.listVP.View(), " ", sep, " ", right)
 	v := tea.NewView(m.ti.View() + "\n" + body + "\n" + m.footer())
 	v.AltScreen = true
+	// Mouse reports are only wanted while the two columns are scrollable;
+	// the confirm/busy/error dialogs turn them off.
+	if m.mode == modeFilter {
+		v.MouseMode = tea.MouseModeCellMotion
+	} else {
+		v.MouseMode = tea.MouseModeNone
+	}
 	return v
 }
 
