@@ -86,30 +86,42 @@ func wheelDown(x int) tea.MouseWheelMsg {
 	return tea.MouseWheelMsg{X: x, Y: 5, Button: tea.MouseWheelDown}
 }
 
+func wheelUp(x int) tea.MouseWheelMsg {
+	return tea.MouseWheelMsg{X: x, Y: 5, Button: tea.MouseWheelUp}
+}
+
 func TestMouseWheelScrollsColumnsIndependently(t *testing.T) {
 	m := testModel(t)
-	m.listVP.SetContent(strings.Repeat("row\n", 100))
 	m.prevVP.SetContent(strings.Repeat("line\n", 100))
+	first := m.cursor
 	res, _ := m.Update(wheelDown(2))
 	m = res.(model)
-	if m.listVP.YOffset() == 0 || m.prevVP.YOffset() != 0 {
-		t.Errorf("wheel over list: list=%d preview=%d, want list>0 preview=0", m.listVP.YOffset(), m.prevVP.YOffset())
+	if m.cursor == first || m.prevVP.YOffset() != 0 {
+		t.Errorf("wheel over list: cursor=%d (was %d) preview=%d, want cursor moved and preview=0", m.cursor, first, m.prevVP.YOffset())
 	}
-	listOff := m.listVP.YOffset()
+	cur := m.cursor
+	m.prevVP.SetContent(strings.Repeat("line\n", 100)) // selection change reset the preview
 	res, _ = m.Update(wheelDown(m.listW() + 10))
 	m = res.(model)
-	if m.prevVP.YOffset() == 0 || m.listVP.YOffset() != listOff {
-		t.Errorf("wheel over preview: list=%d preview=%d, want list=%d preview>0", m.listVP.YOffset(), m.prevVP.YOffset(), listOff)
+	if m.prevVP.YOffset() == 0 || m.cursor != cur {
+		t.Errorf("wheel over preview: cursor=%d preview=%d, want cursor=%d preview>0", m.cursor, m.prevVP.YOffset(), cur)
 	}
-	if m.cursor != firstPR(m.rows) {
-		t.Errorf("wheel moved the cursor to %d", m.cursor)
+	res, _ = m.Update(wheelUp(2))
+	if got := res.(model).cursor; got != first {
+		t.Errorf("wheel up over list: cursor=%d, want back to %d", got, first)
 	}
 }
 
 func TestMouseWheelBurstNeverTypesIntoFilter(t *testing.T) {
 	m := testModel(t)
-	m.listVP.SetContent(strings.Repeat("row\n", 100))
 	m.prevVP.SetContent(strings.Repeat("line\n", 100))
+	last := m.cursor
+	for i := len(m.rows) - 1; i >= 0; i-- {
+		if m.rows[i].kind == "pr" {
+			last = i
+			break
+		}
+	}
 	var mm tea.Model = m
 	for i := 0; i < 200; i++ {
 		x := 2
@@ -122,8 +134,8 @@ func TestMouseWheelBurstNeverTypesIntoFilter(t *testing.T) {
 	if got.ti.Value() != "" {
 		t.Errorf("filter got mouse text %q", got.ti.Value())
 	}
-	if got.listVP.YOffset() == 0 || got.prevVP.YOffset() == 0 {
-		t.Errorf("burst did not scroll: list=%d preview=%d", got.listVP.YOffset(), got.prevVP.YOffset())
+	if got.cursor != last {
+		t.Errorf("burst did not move the selection to the last PR: cursor=%d want %d", got.cursor, last)
 	}
 }
 
@@ -132,10 +144,11 @@ func TestMouseWheelIgnoredOutsideFilterMode(t *testing.T) {
 	m.listVP.SetContent(strings.Repeat("row\n", 100))
 	m.mode = modeConfirmStash
 	m.pending = m.currentRow().e
+	before := m.cursor
 	res, _ := m.Update(wheelDown(2))
 	got := res.(model)
-	if got.listVP.YOffset() != 0 {
-		t.Errorf("wheel scrolled the list in confirm mode: %d", got.listVP.YOffset())
+	if got.cursor != before {
+		t.Errorf("wheel moved the selection in confirm mode: %d -> %d", before, got.cursor)
 	}
 	if got.View().MouseMode != tea.MouseModeNone {
 		t.Errorf("confirm mode still requests mouse reports")

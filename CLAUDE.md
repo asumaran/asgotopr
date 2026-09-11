@@ -97,8 +97,10 @@ Keybinding (user config): `prefix+d` / `ctrl+alt+d` → `plugin_action`
 - **Mouse**: the wheel scrolls whichever column is under the pointer
   (`handleMouse` routes `tea.MouseWheelMsg` by X: `x < listW()+2` is the list
   plus its half of the gutter, else the preview). Wheel over the list moves
-  only the viewport, never the cursor; the next arrow key snaps the cursor
-  back into view via `ensureVisible`. The mouse mode is declared per frame in
+  the selection one PR per notch (`nextPR`, same as the arrow keys), so the
+  preview follows; a viewport-only scroll would be invisible because the
+  list usually fits the popup. Wheel over the preview scrolls the
+  description. The mouse mode is declared per frame in
   `View()` (`MouseModeCellMotion` in modeFilter, `MouseModeNone` in the
   confirm/busy/error dialogs). v2's input parser reassembles SGR reports split
   across reads, so fast wheel bursts never leak into the filter (v1 needed a

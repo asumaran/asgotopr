@@ -127,25 +127,27 @@ check(left(f1) == left(f0), "list column unchanged by preview wheel")
 check(right(f1)[:2] == right(f0)[:2], "preview header unchanged")
 check(right(f1)[3:] != right(f0)[3:], "preview body shifted")
 
-# 2. burst over the list
+# 2. wheel over the list moves the selection (one PR per notch), preview follows
+send(b"\x1b[<65;5;8M"); pump(0.5)
+f2 = frame(); dump("after 1x wheel-down over list", f2)
+check(f2[0].strip() == "gotopr (dev) \u276f", "prompt still clean after list wheel: %r" % f2[0])
+check(any("\u258c #103" in l for l in left(f2)), "wheel-down moved the selection to the second PR (#103)")
+check("#103" in right(f2)[1], "preview header follows the selection (#103)")
+
+# 3. a burst over the list walks to the last PR and stays in view; wheel-up walks back
 send(b"\x1b[<65;5;8M" * 60); pump(0.5)
-f2 = frame(); dump("after 60x wheel-down over list", f2)
-check(f2[0].strip() == "gotopr (dev) ❯", "prompt still clean after list burst: %r" % f2[0])
-check(left(f2) != left(f1), "list column shifted by list wheel")
-check(right(f2) == right(f1), "preview unchanged by list wheel")
-check(not any("▌" in l for l in left(f2)), "cursor row scrolled out of view (wheel does not move the cursor)")
+f3 = frame(); dump("after 60x wheel-down over list", f3)
+check(f3[0].strip() == "gotopr (dev) \u276f", "prompt still clean after list burst: %r" % f3[0])
+check(any("\u258c" in l for l in left(f3)), "selection stays in view after the burst")
+check(left(f3) != left(f2), "list scrolled to keep the selection visible")
+send(b"\x1b[<64;5;8M" * 60); pump(0.5)
+f3b = frame()
+check(left(f3b) == left(f0) and right(f3b)[:2] == right(f0)[:2], "wheel-up walks the selection back to the first PR")
 
-# 3. wheel-up over the list brings it back
-send(b"\x1b[<64;5;8M" * 60); pump(0.4)
-f3 = frame()
-check(left(f3) == left(f0), "wheel-up restores the list to the top")
-
-# 4. arrow down: cursor moves, snaps into view, preview resets for the new PR
-send(b"\x1b[<65;5;8M" * 60); pump(0.3)  # scroll away again
+# 4. arrow down still moves the selection (key map unchanged)
 send(b"\x1b[B"); pump(0.5)
 f4 = frame(); dump("after down arrow", f4)
-check(any("▌" in l for l in left(f4)), "down arrow snaps the cursor back into view")
-check(any("▌ #103" in l for l in left(f4)), "cursor is on the second PR of the first group (#103)")
+check(any("\u258c #103" in l for l in left(f4)), "down arrow moves to the second PR (#103)")
 check("#103" in right(f4)[1], "preview header shows #103")
 
 # 5. typing still filters; backspace clears
@@ -163,7 +165,7 @@ f7 = frame()
 check(right(f7)[3:] != right(f6)[3:], "shift+down scrolls the preview")
 
 # 7. garbage scan over every frame captured so far
-allframes = "\n".join("\n".join(f) for f in (f0, f1, f2, f3, f4, f5, f6, f7))
+allframes = "\n".join("\n".join(f) for f in (f0, f1, f2, f3, f3b, f4, f5, f6, f7))
 check("<6" not in allframes and "rgb:" not in allframes and "[<" not in allframes, "no mouse/OSC garbage in any frame")
 
 # 8. esc quits cleanly, mouse modes reset, no herdr action

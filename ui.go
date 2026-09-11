@@ -286,8 +286,14 @@ func (m *model) ensureVisible() {
 	if h <= 0 || m.cursor < 0 {
 		return
 	}
-	if m.cursor < m.listVP.YOffset() {
-		m.listVP.SetYOffset(m.cursor)
+	// Scrolling up onto the first PR of a group also reveals its header, so
+	// the repo name never sits hidden one line above the selection.
+	top := m.cursor
+	if top > 0 && m.rows[top-1].kind == "header" {
+		top--
+	}
+	if top < m.listVP.YOffset() {
+		m.listVP.SetYOffset(top)
 	} else if m.cursor >= m.listVP.YOffset()+h {
 		m.listVP.SetYOffset(m.cursor - h + 1)
 	}
@@ -561,20 +567,31 @@ func (m model) handleKey(msg tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 }
 
 // handleMouse routes wheel events to the column under the pointer, so the
-// list and the preview scroll independently. Scrolling the list only moves
-// the viewport, never the cursor; the next cursor move snaps it back into
-// view (ensureVisible). Outside modeFilter the wheel is ignored (and the
-// view stops requesting mouse reports at all).
+// two columns scroll independently. Over the list the wheel moves the
+// selection one PR per notch (the list usually fits the popup, so scrolling
+// its viewport alone would be invisible); over the preview it scrolls the
+// description. Outside modeFilter the wheel is ignored (and the view stops
+// requesting mouse reports at all).
 func (m model) handleMouse(msg tea.MouseWheelMsg) (tea.Model, tea.Cmd) {
 	if m.mode != modeFilter {
 		return m, nil
 	}
-	if msg.X < m.listW()+2 { // list column plus its half of the gutter
-		m.listVP, _ = m.listVP.Update(msg)
-	} else {
+	if msg.X >= m.listW()+2 { // preview column, past the list's half of the gutter
 		m.prevVP, _ = m.prevVP.Update(msg)
+		return m, nil
 	}
-	return m, nil
+	var dir int
+	switch msg.Button {
+	case tea.MouseWheelUp:
+		dir = -1
+	case tea.MouseWheelDown:
+		dir = +1
+	default:
+		return m, nil
+	}
+	m.cursor = nextPR(m.rows, m.cursor, dir)
+	m.renderList()
+	return m, m.updatePreview()
 }
 
 func (m model) View() tea.View {
