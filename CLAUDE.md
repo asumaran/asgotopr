@@ -96,6 +96,13 @@ Keybinding (user config): `prefix+d` / `ctrl+alt+d` → `plugin_action`
   stash (`git stash push -u -m "gotopr: switching to <branch>"`, never
   auto-restored) → fetch `pull/<N>/head:<branch>` when the branch is missing
   (covers forks) → `git switch` → `worktree open` on the repo root itself.
+- **Browser**: `ctrl+o` queues the selected PR's URL (`m.browse`) and quits;
+  `runAction` opens it after the TUI exits (same post-quit rule as the herdr
+  action) and never touches the checkout. `openURL` prefers an AppleScript
+  `make new tab` in Chrome's front window when Chrome is running with a
+  window, because `open <url>` lets Chrome pick its `profile.last_used`,
+  which is not the last focused window/profile. Falls back to `open`;
+  `GOTOPR_OPENER` replaces the whole thing.
 - **Errors surface inside the TUI** (modeError); the herdr action runs only
   after quit, because quitting closes the popup and post-exit output is lost.
 - **Never query the terminal behind bubbletea's back**: only the program

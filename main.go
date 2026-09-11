@@ -78,7 +78,8 @@ func main() {
 		fmt.Fprintln(os.Stderr, err)
 		os.Exit(1)
 	}
-	runAction(res.(model).action)
+	final := res.(model)
+	runAction(final.action, final.browse)
 }
 
 // newFilterInput builds the focused filter textinput with the gotopr prompt.

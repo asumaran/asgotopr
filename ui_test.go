@@ -241,3 +241,24 @@ func TestMouseClickSelectsRowWithoutOpening(t *testing.T) {
 		t.Errorf("right click moved the cursor")
 	}
 }
+
+func TestCtrlOQueuesBrowserOpenAndQuits(t *testing.T) {
+	m := testModel(t)
+	res, cmd := m.handleKey(tea.KeyPressMsg{Code: 'o', Mod: tea.ModCtrl})
+	got := res.(model)
+	if got.browse != "u1" {
+		t.Errorf("browse=%q, want the selected PR URL u1", got.browse)
+	}
+	if got.action != nil {
+		t.Errorf("ctrl+o queued a herdr action: %v", got.action)
+	}
+	if cmd == nil {
+		t.Fatalf("ctrl+o did not quit")
+	}
+	if _, ok := cmd().(tea.QuitMsg); !ok {
+		t.Errorf("ctrl+o cmd is not tea.Quit")
+	}
+	if got.ti.Value() != "" {
+		t.Errorf("ctrl+o leaked into the filter: %q", got.ti.Value())
+	}
+}

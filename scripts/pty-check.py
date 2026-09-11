@@ -44,10 +44,15 @@ fake = os.path.join(bind, "herdr")
 with open(fake, "w") as f:
     f.write('#!/bin/sh\necho "$@" >> "%s"\n' % herdr_log)
 os.chmod(fake, 0o755)
+opener_log = os.path.join(SANDBOX, "opener.log")
+opener = os.path.join(bind, "opener")
+with open(opener, "w") as f:
+    f.write('#!/bin/sh\necho "$@" >> "%s"\n' % opener_log)
+os.chmod(opener, 0o755)
 
 # ---------- spawn ----------
 env = dict(os.environ, TERM="xterm-256color", COLORTERM="truecolor", GOTOPR_ROOT=root,
-           HERDR_PLUGIN_STATE_DIR=state, HERDR_BIN_PATH=fake)
+           HERDR_PLUGIN_STATE_DIR=state, HERDR_BIN_PATH=fake, GOTOPR_OPENER=opener)
 env.pop("HERDR_ENV", None)
 master, slave = pty.openpty()
 fcntl.ioctl(slave, termios.TIOCSWINSZ, struct.pack("HHHH", ROWS, COLS, 0, 0))
@@ -192,6 +197,28 @@ except subprocess.TimeoutExpired:
 check(code == 0, "exit code 0 on esc (got %r)" % code)
 check(b"\x1b[?1002l" in raw or b"\x1b[?1006l" in raw, "mouse modes reset on exit")
 check(not os.path.exists(herdr_log), "no herdr action after esc")
+
+# 9. second run: ctrl+o opens the selected PR in the browser and quits, no herdr action
+master, slave = pty.openpty()
+fcntl.ioctl(slave, termios.TIOCSWINSZ, struct.pack("HHHH", ROWS, COLS, 0, 0))
+proc = subprocess.Popen([BIN], stdin=slave, stdout=slave, stderr=slave, env=env, close_fds=True, cwd=SANDBOX)
+os.close(slave)
+screen = pyte.Screen(COLS, ROWS); stream = pyte.ByteStream(screen); raw = bytearray(); answered = 0
+for _ in range(50):
+    pump(0.1)
+    if "gotopr (dev) \u276f" in frame()[0]: break
+pump(0.4)
+f9 = frame()
+sel = [l for l in left(f9) if "\u258c" in l]
+send(b"\x0f"); pump(1.0)
+try:
+    code = proc.wait(timeout=3)
+except subprocess.TimeoutExpired:
+    proc.kill(); code = "timeout"
+check(code == 0, "exit code 0 on ctrl+o (got %r)" % code)
+opened = open(opener_log).read().strip() if os.path.exists(opener_log) else ""
+check(sel and opened.endswith("/pull/" + sel[0].split()[1].lstrip("#")), "ctrl+o opened the selected PR URL: %r" % opened)
+check(not os.path.exists(herdr_log), "no herdr action after ctrl+o")
 
 print("== %d failure(s) ==" % len(failures))
 shutil.rmtree(SANDBOX, ignore_errors=True)

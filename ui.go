@@ -73,11 +73,12 @@ type keyMap struct {
 	Cancel   key.Binding
 	PrevUp   key.Binding
 	PrevDown key.Binding
+	Browse   key.Binding
 	Filter   key.Binding
 }
 
 func (k keyMap) ShortHelp() []key.Binding {
-	return []key.Binding{k.Filter, k.Up, k.Down, k.Select, k.PrevDown, k.Cancel}
+	return []key.Binding{k.Filter, k.Up, k.Down, k.Select, k.Browse, k.PrevDown, k.Cancel}
 }
 func (k keyMap) FullHelp() [][]key.Binding { return [][]key.Binding{k.ShortHelp()} }
 
@@ -89,6 +90,7 @@ func defaultKeys() keyMap {
 		Cancel:   key.NewBinding(key.WithKeys("esc", "ctrl+c"), key.WithHelp("esc", "cancel")),
 		PrevUp:   key.NewBinding(key.WithKeys("shift+up", "pgup"), key.WithHelp("⇧↑", "")),
 		PrevDown: key.NewBinding(key.WithKeys("shift+down", "pgdown"), key.WithHelp("⇧↓", "scroll desc")),
+		Browse:   key.NewBinding(key.WithKeys("ctrl+o"), key.WithHelp("^o", "browser")),
 		Filter:   key.NewBinding(key.WithKeys(), key.WithHelp("type", "search")),
 	}
 }
@@ -145,6 +147,7 @@ type model struct {
 	previewStyle string
 
 	action []string // herdr CLI args to run after quit (nil = none)
+	browse string   // PR URL to open in the browser after quit ("" = none)
 }
 
 func (m *model) currentRow() *row {
@@ -565,6 +568,12 @@ func (m model) handleKey(msg tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 		return m, tea.Quit
 	case key.Matches(msg, m.keys.Select):
 		return m, m.handleSelect()
+	case key.Matches(msg, m.keys.Browse):
+		if r := m.currentRow(); r != nil {
+			m.browse = r.e.pr.URL
+			return m, tea.Quit
+		}
+		return m, nil
 	case key.Matches(msg, m.keys.Up):
 		m.cursor = nextPR(m.rows, m.cursor, -1)
 		m.renderList()
@@ -689,10 +698,43 @@ func promptText() string {
 	return stPrompt.Render("gotopr (") + stDev.Render("dev") + stPrompt.Render(") ❯ ")
 }
 
-// runAction executes the queued herdr CLI call after the TUI has exited.
-func runAction(action []string) {
-	if action == nil {
+// openURL opens a PR in the browser. GOTOPR_OPENER, when set, is used as-is
+// (the pty driver points it at a logging stub). Otherwise, when Google Chrome
+// is running with a window, the tab is created in Chrome's front window so it
+// lands in the profile the user last focused: plain `open` hands the URL to
+// Chrome, which then picks its own "last used" profile bookkeeping, and that
+// routinely disagrees with the window you were just looking at. Anything else
+// falls back to `open`.
+func openURL(url string) {
+	if b := os.Getenv("GOTOPR_OPENER"); b != "" {
+		_ = exec.Command(b, url).Run()
 		return
 	}
-	_ = exec.Command(herdrBin(), action...).Run()
+	if openInChromeFrontWindow(url) == nil {
+		return
+	}
+	_ = exec.Command("open", url).Run()
+}
+
+func openInChromeFrontWindow(url string) error {
+	esc := strings.NewReplacer(`\`, `\\`, `"`, `\"`).Replace(url)
+	script := `tell application "Google Chrome"
+	if not running then error "not running"
+	if (count of windows) = 0 then error "no windows"
+	tell front window to make new tab with properties {URL:"` + esc + `"}
+	activate
+end tell`
+	return exec.Command("osascript", "-e", script).Run()
+}
+
+// runAction executes the queued post-quit work: the herdr CLI call and/or
+// the browser open. Both wait for the TUI to exit because quitting is what
+// closes the popup and anything written to the terminal after that is lost.
+func runAction(action []string, browse string) {
+	if action != nil {
+		_ = exec.Command(herdrBin(), action...).Run()
+	}
+	if browse != "" {
+		openURL(browse)
+	}
 }
