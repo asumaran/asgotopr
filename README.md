@@ -46,7 +46,7 @@ title, the head branch, the PR number (`1234` finds `#1234`), the Jira ticket
 key in branch/title, and the repo name. `↑/↓` (or `ctrl+p`/`ctrl+n`) move
 between PRs, `shift+↓`/`shift+↑` (or PgDn/PgUp) scroll the description
 preview, `enter` opens the selected PR's checkout, `ctrl+o` opens the PR in
-the browser instead, `esc` closes. The mouse
+the browser instead, `esc` closes (so does `q` while the filter is empty). The mouse
 wheel scrolls the description wherever the pointer is; clicking a PR selects
 it (enter still opens it).
 
@@ -71,7 +71,7 @@ never-fetched branches are fetched via `pull/<N>/head` before switching.
 - Worktree detection uses `git worktree list --porcelain`, so it works for
   repos not yet in the herdr sidebar and does not assume `~/wt` conventions.
 - Missing/unauthenticated `gh`, network failures and rate limits degrade to
-  the cached snapshot with a dimmed error in the footer.
+  the cached snapshot with the error on the help line.
 
 ## Development
 

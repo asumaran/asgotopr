@@ -215,11 +215,11 @@ func TestMouseClickSelectsRowWithoutOpening(t *testing.T) {
 	m := testModel(t)
 	first := m.cursor
 	// rows: header(alpha) #100 header(beta) #7 → the second PR sits on row 3,
-	// which is screen line 4 (line 0 is the filter input).
+	// which is screen line listY(false)+3 (the list starts at listY(false), inside the frame).
 	click := func(x, y int) tea.MouseClickMsg {
 		return tea.MouseClickMsg{X: x, Y: y, Button: tea.MouseLeft}
 	}
-	res, cmd := m.Update(click(3, 4))
+	res, cmd := m.Update(click(3, listY(false)+3))
 	got := res.(model)
 	if got.cursor == first || got.currentRow() == nil || got.currentRow().e.pr.Number != 7 {
 		t.Fatalf("click did not select #7: cursor=%d", got.cursor)
@@ -228,15 +228,16 @@ func TestMouseClickSelectsRowWithoutOpening(t *testing.T) {
 	if got.action != nil {
 		t.Errorf("click queued an action: %v", got.action)
 	}
-	// Clicking a header or the preview column changes nothing.
-	for _, c := range []tea.MouseClickMsg{click(3, 3), click(got.listW()+10, 2)} {
+	// Clicking a header, the preview, the divider or the frame changes nothing.
+	for _, c := range []tea.MouseClickMsg{click(3, listY(false)+2), click(got.listW()+10, listY(false)+1),
+		click(got.listW()+1, listY(false)+1), click(0, listY(false)+1), click(3, mainY(false)), click(3, 1)} {
 		res, _ = got.Update(c)
 		if res.(model).cursor != got.cursor {
 			t.Errorf("click %+v moved the cursor to %d", c, res.(model).cursor)
 		}
 	}
 	// Right click is ignored too.
-	res, _ = got.Update(tea.MouseClickMsg{X: 3, Y: 2, Button: tea.MouseRight})
+	res, _ = got.Update(tea.MouseClickMsg{X: 3, Y: listY(false) + 1, Button: tea.MouseRight})
 	if res.(model).cursor != got.cursor {
 		t.Errorf("right click moved the cursor")
 	}
@@ -260,5 +261,43 @@ func TestCtrlOQueuesBrowserOpenAndQuits(t *testing.T) {
 	}
 	if got.ti.Value() != "" {
 		t.Errorf("ctrl+o leaked into the filter: %q", got.ti.Value())
+	}
+}
+
+// TestFrameGeometry pins the single-frame layout: exactly height lines, each
+// exactly width cells, sections where the click math expects them.
+func TestFrameGeometry(t *testing.T) {
+	m := testModel(t)
+	lines := strings.Split(m.View().Content, "\n")
+	if len(lines) != m.height {
+		t.Errorf("%d lines, want %d", len(lines), m.height)
+	}
+	for i, l := range lines {
+		if w := ansi.StringWidth(l); w != m.width {
+			t.Errorf("line %d is %d cells, want %d: %q", i, w, m.width, ansi.Strip(l))
+		}
+	}
+	plain := strings.Split(ansi.Strip(m.View().Content), "\n")
+	if !strings.HasPrefix(plain[0], "╭") || !strings.HasPrefix(plain[len(plain)-1], "╰") ||
+		!strings.Contains(plain[mainY(false)], "┬") || !strings.Contains(plain[0], "2/2") {
+		t.Errorf("frame sections misplaced:\n%s", strings.Join(plain, "\n"))
+	}
+	if !strings.Contains(plain[len(plain)-2], "type filter") || !strings.Contains(plain[len(plain)-2], "esc/q quit") {
+		t.Errorf("help line = %q", plain[len(plain)-2])
+	}
+}
+
+func TestQQuitsOnlyWithEmptyFilter(t *testing.T) {
+	_, cmd := testModel(t).handleKey(tea.KeyPressMsg{Code: 'q', Text: "q"})
+	if cmd == nil {
+		t.Fatal("q with an empty filter should quit")
+	}
+	if _, ok := cmd().(tea.QuitMsg); !ok {
+		t.Error("q cmd is not tea.Quit")
+	}
+	res, _ := testModel(t).handleKey(tea.KeyPressMsg{Code: 'x', Text: "x"})
+	res, _ = res.(model).handleKey(tea.KeyPressMsg{Code: 'q', Text: "q"})
+	if got := res.(model).ti.Value(); got != "xq" {
+		t.Errorf("filter = %q, want q typed as text", got)
 	}
 }

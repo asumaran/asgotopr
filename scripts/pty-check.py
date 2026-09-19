@@ -14,7 +14,7 @@ import pyte
 
 BIN = os.path.abspath(sys.argv[1])
 BG = sys.argv[2] if len(sys.argv) > 2 else "dark"
-ROWS, COLS = 10, 100
+ROWS, COLS = 15, 102  # the frame takes 7 of the lines and 2 of the columns
 SANDBOX = tempfile.mkdtemp(prefix="gotopr-pty-")
 
 # ---------- sandbox: fake clones, synthetic cache, fake herdr ----------
@@ -101,11 +101,15 @@ def check(cond, msg):
     print(("  ok   " if cond else "  FAIL ") + msg)
     if not cond: failures.append(msg)
 
+# One frame (see frame.go): top border with the counter, input, main edge,
+# list | preview, bottom edge, help, border. There is no context line. Mouse
+# reports are written for the framed screen: the list starts on line 3, column 1.
 def listw():
-    return max((COLS - 3) * 30 // 100, 20)
+    return max((COLS - 2) * 30 // 100, 20)
 
-def left(f):  return [l[:listw()] for l in f[1:-1]]
-def right(f): return [l[listw() + 3:] for l in f[1:-1]]
+def left(f):  return [l[1:1 + listw()] for l in f[3:-3]]
+def right(f): return [l[listw() + 3:-1].rstrip() for l in f[3:-3]]
+def promptline(f): return f[1].strip("│ ").rstrip()
 
 def dump(title, f):
     print("--- %s ---" % title)
@@ -115,39 +119,41 @@ def dump(title, f):
 print("== gotopr pty driver (%s background, %dx%d) ==" % (BG, COLS, ROWS))
 for _ in range(50):
     pump(0.1)
-    if "gotopr (dev) ❯" in frame()[0]: break
+    if "gotopr (dev) ❯" in "\n".join(frame()): break
 pump(0.6)
 f0 = frame(); dump("initial frame", f0)
-prompt = f0[0]
-check(prompt.startswith("gotopr (dev) ❯") and prompt.strip() == "gotopr (dev) ❯", "prompt line is clean: %r" % prompt)
+check(promptline(f0) == "gotopr (dev) ❯", "prompt line is clean: %r" % f0[1])
+check(f0[0].startswith("╭") and f0[-1].startswith("╰") and "15/15" in f0[0] and "┬" in f0[2],
+      "one frame: counter on the top border, input right under it, no title line")
+check("type filter" in f0[-2] and "esc/q quit" in f0[-2], "help shows the filter hint and the quit keys: %r" % f0[-2])
 check("▌" in f0[1] or any("▌" in l for l in left(f0)), "selection marker visible in list")
 check(b"\x1b[?1002h" in raw and b"\x1b[?1006h" in raw, "program requested cell-motion + SGR mouse modes")
 check(b"\x1b[?1049h" in raw, "program entered the alt screen")
 
 # 1. burst over the preview (60 wheel-down reports in one write)
-send(b"\x1b[<65;70;8M" * 60); pump(0.5)
+send(b"\x1b[<65;71;10M" * 60); pump(0.5)
 f1 = frame(); dump("after 60x wheel-down over preview", f1)
-check(f1[0].strip() == "gotopr (dev) ❯", "prompt still clean after preview burst: %r" % f1[0])
+check(promptline(f1) == "gotopr (dev) ❯", "prompt still clean after preview burst: %r" % f1[1])
 check(left(f1) == left(f0), "list column unchanged by preview wheel")
 check(right(f1)[:2] == right(f0)[:2], "preview header unchanged")
 check(right(f1)[3:] != right(f0)[3:], "preview body shifted")
 
 # 2. wheel over the list also scrolls the preview and never moves the selection
-send(b"\x1b[<64;70;8M" * 60); pump(0.5)  # wheel-up over the preview: back to the top
+send(b"\x1b[<64;71;10M" * 60); pump(0.5)  # wheel-up over the preview: back to the top
 f1b = frame()
 check(right(f1b) == right(f0), "wheel-up over the preview returns it to the top")
-send(b"\x1b[<65;5;8M"); pump(0.5)
+send(b"\x1b[<65;6;10M"); pump(0.5)
 f2 = frame(); dump("after 1x wheel-down over list", f2)
-check(f2[0].strip() == "gotopr (dev) \u276f", "prompt still clean after list wheel: %r" % f2[0])
+check(promptline(f2) == "gotopr (dev) \u276f", "prompt still clean after list wheel: %r" % f2[1])
 check(left(f2) == left(f0), "wheel over the list leaves the selection alone")
 check(right(f2)[3:] != right(f0)[3:], "wheel over the list scrolls the preview body")
 
 # 3. a burst over the list keeps the selection and keeps scrolling the preview
-send(b"\x1b[<65;5;8M" * 60); pump(0.5)
+send(b"\x1b[<65;6;10M" * 60); pump(0.5)
 f3 = frame(); dump("after 60x wheel-down over list", f3)
-check(f3[0].strip() == "gotopr (dev) \u276f", "prompt still clean after list burst: %r" % f3[0])
+check(promptline(f3) == "gotopr (dev) \u276f", "prompt still clean after list burst: %r" % f3[1])
 check(left(f3) == left(f0), "list burst leaves the selection alone")
-send(b"\x1b[<64;5;8M" * 60); pump(0.5)
+send(b"\x1b[<64;6;10M" * 60); pump(0.5)
 f3b = frame()
 check(right(f3b) == right(f0), "wheel-up over the list scrolls the preview back to the top")
 
@@ -158,26 +164,26 @@ check(any("\u258c #103" in l for l in left(f4)), "down arrow moves to the second
 check("#103" in right(f4)[1], "preview header shows #103")
 
 # 4b. left click on a list row selects it without opening; header/preview clicks are inert
-send(b"\x1b[<0;5;5M\x1b[<0;5;5m"); pump(0.5)   # press+release on screen line 5 (row 4 of the list)
+send(b"\x1b[<0;6;7M\x1b[<0;6;7m"); pump(0.5)   # press+release on screen line 5 (row 4 of the list)
 f4b = frame(); dump("after click on list row 4", f4b)
 clicked = [l for l in left(f4b) if "\u258c" in l]
 check(len(clicked) == 1 and "#103" not in clicked[0], "click moved the selection off #103: %r" % (clicked[:1],))
 check(clicked and clicked[0].split()[1] in right(f4b)[1], "preview header follows the clicked PR")
-send(b"\x1b[<0;5;2M\x1b[<0;5;2m"); pump(0.4)   # screen line 2 is the first group header
+send(b"\x1b[<0;6;4M\x1b[<0;6;4m"); pump(0.4)   # screen line 2 is the first group header
 f4c = frame()
 check(left(f4c) == left(f4b), "click on a header changes nothing")
-send(b"\x1b[<0;70;5M\x1b[<0;70;5m"); pump(0.4)
+send(b"\x1b[<0;71;7M\x1b[<0;71;7m"); pump(0.4)
 f4d = frame()
 check(left(f4d) == left(f4b), "click on the preview changes nothing")
 
 # 5. typing still filters; backspace clears
 send(b"gamma"); pump(0.5)
 f5 = frame(); dump("after typing 'gamma'", f5)
-check(f5[0].strip() == "gotopr (dev) ❯ gamma", "typed text lands in the filter: %r" % f5[0])
+check(promptline(f5) == "gotopr (dev) ❯ gamma", "typed text lands in the filter: %r" % f5[1])
 check(not any("alpha" == l.strip() for l in left(f5)), "filter narrowed the list (no alpha header)")
 send(b"\x7f" * 5); pump(0.4)
 f6 = frame()
-check(f6[0].strip() == "gotopr (dev) ❯", "backspace clears the filter: %r" % f6[0])
+check(promptline(f6) == "gotopr (dev) ❯", "backspace clears the filter: %r" % f6[1])
 
 # 6. shift+down scrolls the preview from the keyboard (key map unchanged)
 send(b"\x1b[1;2B"); pump(0.4)
@@ -206,7 +212,7 @@ os.close(slave)
 screen = pyte.Screen(COLS, ROWS); stream = pyte.ByteStream(screen); raw = bytearray(); answered = 0
 for _ in range(50):
     pump(0.1)
-    if "gotopr (dev) \u276f" in frame()[0]: break
+    if "gotopr (dev) \u276f" in "\n".join(frame()): break
 pump(0.4)
 f9 = frame()
 sel = [l for l in left(f9) if "\u258c" in l]

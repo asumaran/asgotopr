@@ -41,6 +41,9 @@ were lifted from goto's single-file layout):
   debounce.
 - `filter.go` — entries, corpora, fuzzy hits, `matchBonus` ranking, row
   building, header-skipping navigation.
+- `frame.go` — the single-frame layout shared by the family: `hline`, `fit`,
+  `framed`, `frameHead`, `splitMain`, `scrollPos` and the section rows (`mainY`,
+  `listY`, `frameRows`, each with or without the optional context line).
 - `ui.go` — the bubbletea model/Update/View, modes, selection flow, mouse
   routing, styles.
 - `preview.go` — glamour rendering as a `tea.Cmd`, per-(URL,width,updatedAt)
@@ -70,6 +73,16 @@ Keybinding (user config): `prefix+d` / `ctrl+alt+d` → `plugin_action`
 
 ## Behaviour / decisions
 
+- **Layout**: one rounded frame of sections split by shared edges, the layout
+  asgitlog introduced and every picker of the family follows (`frame.go`, the
+  same file in each repo): the filter input (the border over it carries the
+  matches/total counter and the refresh mark), the main section (list and
+  preview split by a divider; its bottom edge carries the preview's scroll
+  position), and the help. A context line on top is only for what the rest of
+  the screen cannot say (asgitlog: repo and branch); a title is not context,
+  so there is none here. The list starts on screen row `listY`, one cell in
+  from the left side, which is what the click-to-row math uses. Errors and
+  notices take the help line.
 - **Data**: two GraphQL searches fetch metadata WITHOUT bodies; bodies come
   in one aliased query only for PRs whose `updatedAt` moved past the cache
   (body edits always bump updatedAt, so it is a safe invalidation key). On a
@@ -119,7 +132,7 @@ Keybinding (user config): `prefix+d` / `ctrl+alt+d` → `plugin_action`
   inertia drifting over the other column is indistinguishable from a new
   gesture and every time-based heuristic misroutes one of the two. The list
   is driven by the keys; a left click on a list row moves the selection there
-  (`handleClick`: row = Y-1 + list YOffset) and never opens the PR; opening
+  (`handleClick`: row = Y-listY + list YOffset, inside the frame's left side) and never opens the PR; opening
   stays on enter. The mouse mode is declared per frame in `View()`
   (`MouseModeCellMotion` in modeFilter, `MouseModeNone` in the
   confirm/busy/error dialogs). v2's input parser reassembles SGR reports split
