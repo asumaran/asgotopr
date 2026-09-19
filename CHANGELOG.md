@@ -1,3 +1,9 @@
+## v0.5.0 (2026-09-19)
+
+* feat(mouse): move the selection with the wheel over the list (193dc01)
+* feat(ui): resize the list with shift+arrows (02bfd12)
+* docs(demo): re-record the GIF with the single-frame layout (240b945)
+
 ## v0.4.0 (2026-09-18)
 
 * feat(ui): adopt the family's single-frame layout (50517b6)
