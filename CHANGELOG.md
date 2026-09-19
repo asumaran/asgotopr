@@ -1,3 +1,10 @@
+## v0.4.0 (2026-09-18)
+
+* feat(ui): adopt the family's single-frame layout (50517b6)
+* ci: run gofmt, vet and tests on push (0c4089a)
+* chore: add the MIT license (d628a4d)
+* fix(release): pass a tag message so signed tags work headless (9611bd4)
+
 ## v0.3.0 (2026-09-11)
 
 * docs: re-record the demo GIF (a390675)
