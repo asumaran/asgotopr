@@ -71,7 +71,7 @@ go build -o asgotopr .    # plugin runs ./asgotopr from the repo root
 ./asgotopr -dump          # repos + PRs + worktree resolution, no TTY (refreshes when stale)
 ./asgotopr -dump -query x # additionally prints filter scores
 go vet ./... && go test ./...
-herdr plugin link ~/Developer/asgotopr   # link does NOT run [[build]]; go build yourself
+herdr plugin link "$PWD"   # link does NOT run [[build]]; go build yourself
 ```
 
 Keybinding (user config): `prefix+d` / `ctrl+alt+d` → `plugin_action`

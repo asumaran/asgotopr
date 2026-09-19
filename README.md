@@ -81,7 +81,7 @@ go build -o asgotopr .   # local build (plugin runs ./asgotopr from the repo roo
 ./asgotopr -dump         # print repos, PRs and worktree resolution (no TTY)
 ./asgotopr -dump -query cart   # additionally print filter scores for a query
 go vet ./... && go test ./...
-herdr plugin link ~/Developer/asgotopr   # register the working copy (no build step)
+herdr plugin link "$PWD"   # register the working copy (no build step)
 ```
 
 Runtime state (`prcache.json`, `repos.json`) lives in
