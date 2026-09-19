@@ -1,4 +1,4 @@
-// gotopr: a herdr plugin popup that lists your open GitHub PRs (author or
+// asgotopr: a herdr plugin popup that lists your open GitHub PRs (author or
 // assignee) across the repos cloned under ~/Developer, grouped by repo, with
 // fuzzy search and a markdown preview of the PR description. Selecting a PR
 // lands you on its checkout: an existing worktree is opened/focused in the
@@ -83,7 +83,7 @@ func main() {
 	runAction(final.action, final.browse)
 }
 
-// newFilterInput builds the focused filter textinput with the gotopr prompt.
+// newFilterInput builds the focused filter textinput with the asgotopr prompt.
 // The prompt string already carries its colors, so the prompt style is left
 // empty.
 func newFilterInput() textinput.Model {

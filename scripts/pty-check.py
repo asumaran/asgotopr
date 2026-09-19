@@ -1,13 +1,13 @@
 #!/usr/bin/env python3
-"""End-to-end TUI check for gotopr without a real terminal.
+"""End-to-end TUI check for asgotopr without a real terminal.
 
 Spawns the binary on a pty, answers the terminal queries bubbletea sends
 (OSC 10/11, CSI 6n, DA1), replays keystrokes and SGR mouse wheel bursts, and
 asserts on frames rendered with pyte. Everything runs in a throwaway sandbox
-(fake clones under GOTOPR_ROOT, a synthetic prcache.json, a fake herdr), so it
+(fake clones under ASGOTOPR_ROOT, a synthetic prcache.json, a fake herdr), so it
 never touches the real plugin state.
 
-Usage: scripts/pty-check.py ./gotopr [dark|light]   (needs python3 + pyte)
+Usage: scripts/pty-check.py ./asgotopr [dark|light]   (needs python3 + pyte)
 """
 import datetime, fcntl, json, os, pty, select, shutil, struct, subprocess, sys, tempfile, termios, time
 import pyte
@@ -15,7 +15,7 @@ import pyte
 BIN = os.path.abspath(sys.argv[1])
 BG = sys.argv[2] if len(sys.argv) > 2 else "dark"
 ROWS, COLS = 15, 102  # the frame takes 7 of the lines and 2 of the columns
-SANDBOX = tempfile.mkdtemp(prefix="gotopr-pty-")
+SANDBOX = tempfile.mkdtemp(prefix="asgotopr-pty-")
 
 # ---------- sandbox: fake clones, synthetic cache, fake herdr ----------
 root = os.path.join(SANDBOX, "root"); state = os.path.join(SANDBOX, "state"); bind = os.path.join(SANDBOX, "bin")
@@ -51,8 +51,8 @@ with open(opener, "w") as f:
 os.chmod(opener, 0o755)
 
 # ---------- spawn ----------
-env = dict(os.environ, TERM="xterm-256color", COLORTERM="truecolor", GOTOPR_ROOT=root,
-           HERDR_PLUGIN_STATE_DIR=state, HERDR_BIN_PATH=fake, GOTOPR_OPENER=opener)
+env = dict(os.environ, TERM="xterm-256color", COLORTERM="truecolor", ASGOTOPR_ROOT=root,
+           HERDR_PLUGIN_STATE_DIR=state, HERDR_BIN_PATH=fake, ASGOTOPR_OPENER=opener)
 env.pop("HERDR_ENV", None)
 master, slave = pty.openpty()
 fcntl.ioctl(slave, termios.TIOCSWINSZ, struct.pack("HHHH", ROWS, COLS, 0, 0))
@@ -115,13 +115,13 @@ def dump(title, f):
     for i, l in enumerate(f): print("%2d|%s" % (i, l))
 
 # ---------- steps ----------
-print("== gotopr pty driver (%s background, %dx%d) ==" % (BG, COLS, ROWS))
+print("== asgotopr pty driver (%s background, %dx%d) ==" % (BG, COLS, ROWS))
 for _ in range(50):
     pump(0.1)
-    if "gotopr (dev) ❯" in "\n".join(frame()): break
+    if "asgotopr (dev) ❯" in "\n".join(frame()): break
 pump(0.6)
 f0 = frame(); dump("initial frame", f0)
-check(promptline(f0) == "gotopr (dev) ❯", "prompt line is clean: %r" % f0[1])
+check(promptline(f0) == "asgotopr (dev) ❯", "prompt line is clean: %r" % f0[1])
 check(f0[0].startswith("╭") and f0[-1].startswith("╰") and "15/15" in f0[0] and "┬" in f0[2],
       "one frame: counter on the top border, input right under it, no title line")
 check("type filter" in f0[-2] and "esc/q quit" in f0[-2], "help shows the filter hint and the quit keys: %r" % f0[-2])
@@ -132,7 +132,7 @@ check(b"\x1b[?1049h" in raw, "program entered the alt screen")
 # 1. burst over the preview (60 wheel-down reports in one write)
 send(b"\x1b[<65;71;10M" * 60); pump(0.5)
 f1 = frame(); dump("after 60x wheel-down over preview", f1)
-check(promptline(f1) == "gotopr (dev) ❯", "prompt still clean after preview burst: %r" % f1[1])
+check(promptline(f1) == "asgotopr (dev) ❯", "prompt still clean after preview burst: %r" % f1[1])
 check(left(f1) == left(f0), "list column unchanged by preview wheel")
 check(right(f1)[:2] == right(f0)[:2], "preview header unchanged")
 check(right(f1)[3:] != right(f0)[3:], "preview body shifted")
@@ -144,13 +144,13 @@ f1b = frame()
 check(right(f1b) == right(f0), "wheel-up over the preview returns it to the top")
 send(b"\x1b[<65;6;10M"); pump(0.5)
 f2 = frame(); dump("after 1x wheel-down over list", f2)
-check(promptline(f2) == "gotopr (dev) \u276f", "prompt still clean after list wheel: %r" % f2[1])
+check(promptline(f2) == "asgotopr (dev) \u276f", "prompt still clean after list wheel: %r" % f2[1])
 check(selected(f2) and selected(f2) != selected(f0), "wheel over the list moves the selection: %r -> %r" % (selected(f0), selected(f2)))
 
 # 3. a burst over the list runs to the last PR and back, and never types into the filter
 send(b"\x1b[<65;6;10M" * 60); pump(0.5)
 f3 = frame(); dump("after 60x wheel-down over list", f3)
-check(promptline(f3) == "gotopr (dev) \u276f", "prompt still clean after list burst: %r" % f3[1])
+check(promptline(f3) == "asgotopr (dev) \u276f", "prompt still clean after list burst: %r" % f3[1])
 check(selected(f3) not in ("", selected(f2)), "list burst keeps moving the selection: %r" % selected(f3))
 send(b"\x1b[<64;6;10M" * 60); pump(0.5)
 f3b = frame()
@@ -178,11 +178,11 @@ check(left(f4d) == left(f4b), "click on the preview changes nothing")
 # 5. typing still filters; backspace clears
 send(b"gamma"); pump(0.5)
 f5 = frame(); dump("after typing 'gamma'", f5)
-check(promptline(f5) == "gotopr (dev) ❯ gamma", "typed text lands in the filter: %r" % f5[1])
+check(promptline(f5) == "asgotopr (dev) ❯ gamma", "typed text lands in the filter: %r" % f5[1])
 check(not any("alpha" == l.strip() for l in left(f5)), "filter narrowed the list (no alpha header)")
 send(b"\x7f" * 5); pump(0.4)
 f6 = frame()
-check(promptline(f6) == "gotopr (dev) ❯", "backspace clears the filter: %r" % f6[1])
+check(promptline(f6) == "asgotopr (dev) ❯", "backspace clears the filter: %r" % f6[1])
 
 # 6. shift+down scrolls the preview from the keyboard (key map unchanged)
 send(b"\x1b[1;2B"); pump(0.4)
@@ -222,7 +222,7 @@ os.close(slave)
 screen = pyte.Screen(COLS, ROWS); stream = pyte.ByteStream(screen); raw = bytearray(); answered = 0
 for _ in range(50):
     pump(0.1)
-    if "gotopr (dev) \u276f" in "\n".join(frame()): break
+    if "asgotopr (dev) \u276f" in "\n".join(frame()): break
 pump(0.4)
 f9 = frame()
 sel = [l for l in left(f9) if "\u258c" in l]

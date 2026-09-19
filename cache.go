@@ -24,7 +24,7 @@ func stateDir() string {
 			base = filepath.Join(h, ".config")
 		}
 	}
-	return filepath.Join(base, "herdr", "gotopr-tui")
+	return filepath.Join(base, "herdr", "asgotopr-tui")
 }
 
 // prCacheFresh is how recent the cached PR snapshot must be to skip the

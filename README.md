@@ -1,4 +1,4 @@
-# gotopr
+# asgotopr
 
 A [herdr](https://github.com/asumaran/herdr) plugin popup that lists your open
 GitHub PRs (author or assignee) across the repos cloned under `~/Developer`,
@@ -12,21 +12,21 @@ Selecting a PR lands you on its checkout:
   when the tree is dirty — and the repo is selected in the sidebar (added when
   missing).
 
-![gotopr demo: popup over herdr listing open PRs with a preview, fuzzy search, jump to the PR's worktree](docs/demo.gif)
+![asgotopr demo: popup over herdr listing open PRs with a preview, fuzzy search, jump to the PR's worktree](docs/demo.gif)
 
-Sibling of [herdr-goto](https://github.com/asumaran/herdr-goto): same
+Sibling of [asgoto](https://github.com/asumaran/asgoto): same
 open-pick-exit popup pattern, same fuzzy search feel, but the universe is
 your PRs on GitHub instead of the workspaces already in herdr.
 
 ## Install
 
 ```
-herdr plugin install asumaran/gotopr
+herdr plugin install asumaran/asgotopr
 ```
 
 The manifest's `[[build]]` runs `scripts/fetch-binary.sh`, which downloads the
 release binary matching the manifest version and falls back to `go build`
-(`GOTOPR_BUILD_FROM_SOURCE=1` skips the download). Requires herdr >= 0.7.5 and
+(`ASGOTOPR_BUILD_FROM_SOURCE=1` skips the download). Requires herdr >= 0.7.5 and
 the [`gh` CLI](https://cli.github.com) authenticated (`gh auth login`).
 
 Bind a key to the `open` action in `~/.config/herdr/config.toml`:
@@ -35,8 +35,8 @@ Bind a key to the `open` action in `~/.config/herdr/config.toml`:
 [[keys.command]]
 key = ["prefix+d", "ctrl+alt+d"]
 type = "plugin_action"
-command = "asumaran.gotopr.open"
-description = "gotopr (PR switcher)"
+command = "asumaran.asgotopr.open"
+description = "asgotopr (PR switcher)"
 ```
 
 ## Usage
@@ -52,8 +52,8 @@ wheel moves the selection over the list and scrolls the description anywhere
 else; clicking a PR selects it (enter still opens it).
 
 When the PR's branch needs a checkout switch and the working tree has
-uncommitted changes, gotopr offers: `[s]` stash & switch (stash message
-`gotopr: switching to <branch>`, findable later with `git stash list`; there
+uncommitted changes, asgotopr offers: `[s]` stash & switch (stash message
+`asgotopr: switching to <branch>`, findable later with `git stash list`; there
 is no auto-restore), `[f]` switch anyway, `[esc]` cancel. Fork PRs and
 never-fetched branches are fetched via `pull/<N>/head` before switching.
 
@@ -77,25 +77,25 @@ never-fetched branches are fetched via `pull/<N>/head` before switching.
 ## Development
 
 ```bash
-go build -o gotopr .   # local build (plugin runs ./gotopr from the repo root)
-./gotopr -dump         # print repos, PRs and worktree resolution (no TTY)
-./gotopr -dump -query cart   # additionally print filter scores for a query
+go build -o asgotopr .   # local build (plugin runs ./asgotopr from the repo root)
+./asgotopr -dump         # print repos, PRs and worktree resolution (no TTY)
+./asgotopr -dump -query cart   # additionally print filter scores for a query
 go vet ./... && go test ./...
-herdr plugin link ~/Developer/gotopr   # register the working copy (no build step)
+herdr plugin link ~/Developer/asgotopr   # register the working copy (no build step)
 ```
 
 Runtime state (`prcache.json`, `repos.json`) lives in
 `HERDR_PLUGIN_STATE_DIR`; standalone runs fall back to
-`~/.config/herdr/gotopr-tui/`. `GOTOPR_ROOT` overrides the `~/Developer` scan
+`~/.config/herdr/asgotopr-tui/`. `ASGOTOPR_ROOT` overrides the `~/Developer` scan
 root (used by tests).
 
 ## Demo recording
 
 `docs/demo.gif` is recorded with
-[herdr-demokit](https://github.com/asumaran/herdr-demokit): `herdr-demo
+[asdemokit](https://github.com/asumaran/asdemokit): `asdemo
 record` from the repo root replays `scripts/demo/keys.json` against an
 isolated herdr session described by `scripts/demo/scenario.sh`. The scenario
-points `GOTOPR_ROOT` at a throwaway directory of symlinks to personal repos,
+points `ASGOTOPR_ROOT` at a throwaway directory of symlinks to personal repos,
 so only those PRs show up; the scan follows symlinked clones for that reason.
 
 ## Releasing
@@ -103,4 +103,4 @@ so only those PRs show up; the scan follows symlinked clones for that reason.
 `scripts/release.sh <X.Y.Z>` gates on a clean tree + green vet/build/test,
 generates the CHANGELOG entry from commit subjects, syncs the manifest
 version, commits, tags and publishes the GitHub release; CI then attaches
-`gotopr-darwin-arm64`, the asset `fetch-binary.sh` downloads on installs.
+`asgotopr-darwin-arm64`, the asset `fetch-binary.sh` downloads on installs.

@@ -1,5 +1,5 @@
 #!/bin/sh
-# fetch-binary.sh — the plugin's [[build]] command: provision ./gotopr without
+# fetch-binary.sh — the plugin's [[build]] command: provision ./asgotopr without
 # requiring a Go toolchain.
 #
 # Downloads the prebuilt binary attached to the GitHub release matching the
@@ -9,9 +9,9 @@
 # fails. Exits non-zero only when neither path works, which aborts the plugin
 # install.
 #
-# Set GOTOPR_BUILD_FROM_SOURCE=1 to skip the download and always compile
+# Set ASGOTOPR_BUILD_FROM_SOURCE=1 to skip the download and always compile
 # locally (for users who prefer not to run prebuilt binaries):
-#   GOTOPR_BUILD_FROM_SOURCE=1 herdr plugin install asumaran/gotopr
+#   ASGOTOPR_BUILD_FROM_SOURCE=1 herdr plugin install asumaran/asgotopr
 set -eu
 
 cd "$(dirname "$0")/.."
@@ -33,16 +33,16 @@ case "$(uname -m)" in
   *)               ARCH="" ;;
 esac
 
-URL="https://github.com/asumaran/gotopr/releases/download/v${VERSION}/gotopr-${OS}-${ARCH}"
+URL="https://github.com/asumaran/asgotopr/releases/download/v${VERSION}/asgotopr-${OS}-${ARCH}"
 
-if [ "${GOTOPR_BUILD_FROM_SOURCE:-0}" = "1" ]; then
-  echo "fetch-binary: GOTOPR_BUILD_FROM_SOURCE=1, skipping release download"
+if [ "${ASGOTOPR_BUILD_FROM_SOURCE:-0}" = "1" ]; then
+  echo "fetch-binary: ASGOTOPR_BUILD_FROM_SOURCE=1, skipping release download"
 elif [ -n "$OS" ] && [ -n "$ARCH" ] && command -v curl >/dev/null 2>&1; then
   tmp="$(mktemp)"
   if curl -fsSL --retry 2 -o "$tmp" "$URL"; then
     chmod +x "$tmp"
-    mv "$tmp" gotopr
-    echo "fetch-binary: installed gotopr-${OS}-${ARCH} from release v${VERSION}"
+    mv "$tmp" asgotopr
+    echo "fetch-binary: installed asgotopr-${OS}-${ARCH} from release v${VERSION}"
     exit 0
   fi
   rm -f "$tmp"
@@ -50,8 +50,8 @@ elif [ -n "$OS" ] && [ -n "$ARCH" ] && command -v curl >/dev/null 2>&1; then
 fi
 
 if command -v go >/dev/null 2>&1; then
-  go build -ldflags "-X main.version=v${VERSION}-source" -o gotopr .
-  echo "fetch-binary: built gotopr from source (v${VERSION}-source)"
+  go build -ldflags "-X main.version=v${VERSION}-source" -o asgotopr .
+  echo "fetch-binary: built asgotopr from source (v${VERSION}-source)"
   exit 0
 fi
 

@@ -11,8 +11,8 @@ import (
 
 func TestGithubSlugFromURL(t *testing.T) {
 	cases := map[string]string{
-		"git@github.com:asumaran/gotopr.git":   "asumaran/gotopr",
-		"git@github.com:asumaran/gotopr":       "asumaran/gotopr",
+		"git@github.com:asumaran/asgotopr.git": "asumaran/asgotopr",
+		"git@github.com:asumaran/asgotopr":     "asumaran/asgotopr",
 		"ssh://git@github.com/owner/repo.git":  "owner/repo",
 		"https://github.com/owner/repo":        "owner/repo",
 		"https://github.com/owner/repo.git":    "owner/repo",
@@ -35,10 +35,10 @@ func TestOriginURL(t *testing.T) {
 [remote "upstream"]
 	url = git@github.com:other/upstream.git
 [remote "origin"]
-	url = git@github.com:asumaran/gotopr.git
+	url = git@github.com:asumaran/asgotopr.git
 	fetch = +refs/heads/*:refs/remotes/origin/*
 `
-	if got := originURL(config); got != "git@github.com:asumaran/gotopr.git" {
+	if got := originURL(config); got != "git@github.com:asumaran/asgotopr.git" {
 		t.Errorf("originURL = %q", got)
 	}
 	if got := originURL("[core]\n\tbare = false\n"); got != "" {
@@ -279,7 +279,7 @@ func TestTicketFrom(t *testing.T) {
 
 func TestConfirmModeTransitions(t *testing.T) {
 	e := &entry{pr: prItem{URL: "u", Number: 1, HeadRefName: "feat/x", RepoSlug: "o/r"},
-		repo: localRepo{Slug: "o/r", Path: "/tmp/nonexistent-gotopr-test", Name: "r"}}
+		repo: localRepo{Slug: "o/r", Path: "/tmp/nonexistent-asgotopr-test", Name: "r"}}
 	m := model{mode: modeConfirmStash, pending: e, keys: defaultKeys()}
 
 	// esc cancels back to filter mode.

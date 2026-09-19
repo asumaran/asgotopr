@@ -1,5 +1,5 @@
-id = "asumaran.gotopr"
-name = "gotopr"
+id = "asumaran.asgotopr"
+name = "asgotopr"
 version = "0.5.0"
 min_herdr_version = "0.7.5"
 description = "Jump to your open GitHub PRs across local repos and worktrees"
@@ -20,4 +20,4 @@ title = "PRs"
 placement = "popup"
 width = "85%"
 height = "90%"
-command = ["./gotopr"]
+command = ["./asgotopr"]

@@ -1,7 +1,7 @@
 # Compiled binary (built locally or in CI; attached to GitHub Releases as an asset).
-/gotopr
-gotopr-darwin-*
-gotopr-linux-*
+/asgotopr
+asgotopr-darwin-*
+asgotopr-linux-*
 
 # Release staging
 /dist/

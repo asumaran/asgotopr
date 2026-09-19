@@ -14,7 +14,7 @@ import (
 
 type localRepo struct {
 	Slug string `json:"slug"` // lowercased "owner/repo"
-	Path string `json:"path"` // main clone, e.g. ~/Developer/gotopr
+	Path string `json:"path"` // main clone, e.g. ~/Developer/asgotopr
 	Name string `json:"name"` // directory base name
 }
 
@@ -30,7 +30,7 @@ type repoScanCache struct {
 
 // devRoot is where local clones live. Overridable for tests.
 func devRoot() string {
-	if r := os.Getenv("GOTOPR_ROOT"); r != "" {
+	if r := os.Getenv("ASGOTOPR_ROOT"); r != "" {
 		return r
 	}
 	h, err := os.UserHomeDir()
@@ -84,7 +84,7 @@ func scanRepos(root string, cache repoScanCache) ([]localRepo, repoScanCache) {
 
 // isDirOrDirLink reports whether a scan-root entry is a directory, following
 // symlinks: a root made of links to clones elsewhere (e.g. a curated
-// GOTOPR_ROOT for a demo or a test) scans like the real thing. Dangling or
+// ASGOTOPR_ROOT for a demo or a test) scans like the real thing. Dangling or
 // file links are skipped. The link path itself is kept as the clone path, so
 // everything downstream (worktree listing, herdr workspaces) sees the
 // directory the user pointed at.

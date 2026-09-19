@@ -4,18 +4,18 @@ Guidance for working in this repository.
 
 ## What this is
 
-`gotopr` is a herdr plugin popup that lists the user's open GitHub PRs
+`asgotopr` is a herdr plugin popup that lists the user's open GitHub PRs
 (author or assignee) across the repos cloned under `~/Developer`, grouped by
 repo, with fuzzy search and a glamour-rendered preview of the PR description.
 Selecting a PR opens its checkout: an existing worktree is focused in the
 herdr sidebar via `herdr worktree open` (added when missing); otherwise the
 main clone switches to the branch (offering a stash when dirty) and the repo
 is selected in the sidebar. Open, pick, exit — same lifecycle as
-`herdr-goto`, which this repo is modeled on.
+`asgoto`, which this repo is modeled on.
 
-Distributed as a herdr plugin (`herdr plugin install asumaran/gotopr`; the
+Distributed as a herdr plugin (`herdr plugin install asumaran/asgotopr`; the
 manifest's `[[build]]` runs `scripts/fetch-binary.sh`). Each GitHub Release
-attaches `gotopr-darwin-arm64`. There is no published library.
+attaches `asgotopr-darwin-arm64`. There is no published library.
 
 ## Stack & layout
 
@@ -25,7 +25,7 @@ bubbles v2 (`textinput`, `viewport`, `key`, `help`), lipgloss v2,
 v2 modules are imported under their canonical `charm.land/<name>/v2` paths
 (the `github.com/charmbracelet/<name>/v2` spelling is rejected by `go get`).
 Files are split by concern but everything stays in `package main` (helpers
-were lifted from goto's single-file layout):
+were lifted from asgoto's single-file layout):
 
 - `main.go` — flags (`-version`, `-dump`, `-query`), model construction,
   `tea.NewProgram`, post-quit herdr exec, `runDump`.
@@ -33,7 +33,7 @@ were lifted from goto's single-file layout):
   batched body fetch, `planRefresh` (updatedAt invalidation), merge/dedup.
 - `repos.go` — `~/Developer` scan → slug → clones map, mtime-keyed scan
   cache, `primaryClone` (twin-clone rule). The scan follows symlinked
-  directories (a curated `GOTOPR_ROOT` of links, used by the demo).
+  directories (a curated `ASGOTOPR_ROOT` of links, used by the demo).
 - `git.go` — subprocess-free discovery (`resolveGitDir`, `originURL`,
   `githubSlug*`) + porcelain worktree parsing, `isDirty`, `branchExists`,
   `runGit`.
@@ -46,7 +46,7 @@ were lifted from goto's single-file layout):
   `listY`, `frameRows`, each with or without the optional context line).
 - `split.go` — the divider between the list and the preview: `loadSplit`,
   `saveSplit`, `stepSplit`, `splitWidths`. The file is copied, not imported:
-  the same one ships in gotochanged, gotosession, gotonotes and gotojira (all
+  the same one ships in asgotochanged, asgotosession, asgotonotes and asgotoissues (all
   under github.com/asumaran), and there is no shared library. A pull request
   only needs to change it here; the maintainer ports the change to the other
   copies.
@@ -58,24 +58,24 @@ were lifted from goto's single-file layout):
 - `confirm.go` — stash/switch/error flow: `performSwitchCmd`, `stashCmd`,
   dialog views.
 - `scripts/demo/` — the demo scenario (`scenario.sh` + `keys.json`) that
-  `herdr-demo record` (asumaran/herdr-demokit, the recording tool shared by
+  `asdemo record` (asumaran/asdemokit, the recording tool shared by
   the herdr plugins) uses to re-record `docs/demo.gif`; see
-  `scripts/demo/README.md`. Uses a disposable herdr session (`gotoprdemo`)
-  and a symlink-only `GOTOPR_ROOT`, and parks the plugin's state dir during
+  `scripts/demo/README.md`. Uses a disposable herdr session (`asgotoprdemo`)
+  and a symlink-only `ASGOTOPR_ROOT`, and parks the plugin's state dir during
   the take.
 
 ## Build & run
 
 ```bash
-go build -o gotopr .    # plugin runs ./gotopr from the repo root
-./gotopr -dump          # repos + PRs + worktree resolution, no TTY (refreshes when stale)
-./gotopr -dump -query x # additionally prints filter scores
+go build -o asgotopr .    # plugin runs ./asgotopr from the repo root
+./asgotopr -dump          # repos + PRs + worktree resolution, no TTY (refreshes when stale)
+./asgotopr -dump -query x # additionally prints filter scores
 go vet ./... && go test ./...
-herdr plugin link ~/Developer/gotopr   # link does NOT run [[build]]; go build yourself
+herdr plugin link ~/Developer/asgotopr   # link does NOT run [[build]]; go build yourself
 ```
 
 Keybinding (user config): `prefix+d` / `ctrl+alt+d` → `plugin_action`
-`asumaran.gotopr.open` → `scripts/open-pane.sh` → `herdr plugin pane open`.
+`asumaran.asgotopr.open` → `scripts/open-pane.sh` → `herdr plugin pane open`.
 
 ## Behaviour / decisions
 
@@ -119,7 +119,7 @@ Keybinding (user config): `prefix+d` / `ctrl+alt+d` → `plugin_action`
   `git worktree list --porcelain` across ALL clones of the slug; a hit maps
   to `herdr worktree open --cwd <clone> --path <checkout> --focus`
   (idempotent, creates sidebar entries). No hit → dirty check → optional
-  stash (`git stash push -u -m "gotopr: switching to <branch>"`, never
+  stash (`git stash push -u -m "asgotopr: switching to <branch>"`, never
   auto-restored) → fetch `pull/<N>/head:<branch>` when the branch is missing
   (covers forks) → `git switch` → `worktree open` on the repo root itself.
 - **Browser**: `ctrl+o` queues the selected PR's URL (`m.browse`) and quits;
@@ -128,7 +128,7 @@ Keybinding (user config): `prefix+d` / `ctrl+alt+d` → `plugin_action`
   `make new tab` in Chrome's front window when Chrome is running with a
   window, because `open <url>` lets Chrome pick its `profile.last_used`,
   which is not the last focused window/profile. Falls back to `open`;
-  `GOTOPR_OPENER` replaces the whole thing.
+  `ASGOTOPR_OPENER` replaces the whole thing.
 - **Errors surface inside the TUI** (modeError); the herdr action runs only
   after quit, because quitting closes the popup and post-exit output is lost.
 - **Never query the terminal behind bubbletea's back**: only the program
@@ -166,11 +166,11 @@ Keybinding (user config): `prefix+d` / `ctrl+alt+d` → `plugin_action`
 Unit tests cover the pure logic (parsing, merge/dedup, invalidation, ranking,
 grouping, mode transitions, View content, wheel routing, background-color
 style flip). For end-to-end TUI verification without a TTY,
-`scripts/pty-check.py ./gotopr [dark|light]` (python3 + `pyte`) spawns the
+`scripts/pty-check.py ./asgotopr [dark|light]` (python3 + `pyte`) spawns the
 binary on a pty, answers the OSC 10/11 + CSI 6n + DA1 queries, replays
 keystrokes and SGR wheel bursts, and asserts on pyte-rendered frames (prompt
 stays clean, each column scrolls on its own, keys unchanged, clean exit). It
-runs against a throwaway sandbox (`GOTOPR_ROOT` of fake clones, a synthetic
+runs against a throwaway sandbox (`ASGOTOPR_ROOT` of fake clones, a synthetic
 `prcache.json` in `HERDR_PLUGIN_STATE_DIR`, a fake `HERDR_BIN_PATH` that logs
 argv) and never touches the real plugin state.
 
@@ -185,6 +185,6 @@ argv) and never touches the real plugin state.
 
 `scripts/release.sh <X.Y.Z>` — clean-tree + vet/build/test gate, CHANGELOG
 generation from commit subjects, manifest version sync, commit + tag + GitHub
-release; CI (`.github/workflows/release.yml`) attaches `gotopr-darwin-arm64`.
-Releasing never touches the linked plugin's `./gotopr`; rebuild locally to
+release; CI (`.github/workflows/release.yml`) attaches `asgotopr-darwin-arm64`.
+Releasing never touches the linked plugin's `./asgotopr`; rebuild locally to
 keep testing dev code.

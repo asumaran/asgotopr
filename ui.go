@@ -2,7 +2,7 @@ package main
 
 // The bubbletea model: a filter input on top, a two-column body (grouped PR
 // list left, markdown preview right) and a help footer. Modeled on
-// herdr-goto: the input is focused before the program starts, every printable
+// asgoto: the input is focused before the program starts, every printable
 // key filters, and the selected action is executed as a herdr CLI call AFTER
 // the TUI exits (quitting is what closes the popup).
 
@@ -758,12 +758,12 @@ func (m model) footer() string {
 // non-release builds.
 func promptText() string {
 	if strings.HasPrefix(version, "v") {
-		return stPrompt.Render("gotopr ❯ ")
+		return stPrompt.Render("asgotopr ❯ ")
 	}
-	return stPrompt.Render("gotopr (") + stDev.Render("dev") + stPrompt.Render(") ❯ ")
+	return stPrompt.Render("asgotopr (") + stDev.Render("dev") + stPrompt.Render(") ❯ ")
 }
 
-// openURL opens a PR in the browser. GOTOPR_OPENER, when set, is used as-is
+// openURL opens a PR in the browser. ASGOTOPR_OPENER, when set, is used as-is
 // (the pty driver points it at a logging stub). Otherwise, when Google Chrome
 // is running with a window, the tab is created in Chrome's front window so it
 // lands in the profile the user last focused: plain `open` hands the URL to
@@ -771,7 +771,7 @@ func promptText() string {
 // routinely disagrees with the window you were just looking at. Anything else
 // falls back to `open`.
 func openURL(url string) {
-	if b := os.Getenv("GOTOPR_OPENER"); b != "" {
+	if b := os.Getenv("ASGOTOPR_OPENER"); b != "" {
 		_ = exec.Command(b, url).Run()
 		return
 	}

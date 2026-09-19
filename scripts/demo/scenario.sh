@@ -1,23 +1,23 @@
 # shellcheck shell=bash
-# scenario.sh — demo session for the README GIF, run by `herdr-demo record`
-# (asumaran/herdr-demokit). Sourced by the kit; the helpers used below
+# scenario.sh — demo session for the README GIF, run by `asdemo record`
+# (asumaran/asdemokit). Sourced by the kit; the helpers used below
 # (demo_*) come from it.
 
-DEMO_SESSION="gotoprdemo"
+DEMO_SESSION="asgotoprdemo"
 DEMO_OUT="docs/demo.gif"
 DEMO_START_CWD="$HOME/Developer/asdev"
 
-# gotopr lists every open PR of the account across the clones under its scan
+# asgotopr lists every open PR of the account across the clones under its scan
 # root, which for a public GIF must not be ~/Developer (work repos). The demo
 # scans a throwaway root holding symlinks to personal repos only; the scan
 # follows links, so the PRs resolve to the real checkouts and worktrees.
-DEMO_SCAN_ROOT="${TMPDIR:-/tmp}/gotopr-demo-root"
-DEMO_SESSION_ENV=(GOTOPR_ROOT="$DEMO_SCAN_ROOT")
+DEMO_SCAN_ROOT="${TMPDIR:-/tmp}/asgotopr-demo-root"
+DEMO_SESSION_ENV=(ASGOTOPR_ROOT="$DEMO_SCAN_ROOT")
 SCAN_REPOS=(
   "$HOME/Developer/shopnest"
 )
 
-# Same sidebar as the goto demo: personal repos, shopnest's worktrees (each
+# Same sidebar as the asgoto demo: personal repos, shopnest's worktrees (each
 # on a PR branch, so selecting those PRs focuses them without a checkout
 # switch), bottom splits on the workspaces the demo visits.
 REPOS=(
@@ -40,27 +40,27 @@ SPLITS=(
 # herdr hands every plugin one state dir regardless of session, so the demo
 # run would leave prcache.json/repos.json holding the demo root's data. Park
 # the real state during the recording and put it back afterwards.
-STATE_DIR="$HOME/.local/state/herdr/plugins/asumaran.gotopr"
+STATE_DIR="$HOME/.local/state/herdr/plugins/asumaran.asgotopr"
 STATE_BACKUP=""
 
 demo_build() {
   local version repo
   version="$(sed -n 's/^version = "\(.*\)"/\1/p' herdr-plugin.toml)"
-  go build -ldflags "-X main.version=v${version}" -o gotopr .
+  go build -ldflags "-X main.version=v${version}" -o asgotopr .
 
   rm -rf "$DEMO_SCAN_ROOT"
   mkdir -p "$DEMO_SCAN_ROOT"
   for repo in "${SCAN_REPOS[@]}"; do ln -s "$repo" "$DEMO_SCAN_ROOT/$(basename "$repo")"; done
 
   if [[ -d "$STATE_DIR" ]]; then
-    STATE_BACKUP="$(mktemp -d -t gotopr-state)"
+    STATE_BACKUP="$(mktemp -d -t asgotopr-state)"
     cp -R "$STATE_DIR/." "$STATE_BACKUP/"
     rm -rf "$STATE_DIR"
   fi
 }
 
 demo_teardown() {
-  go build -o gotopr . 2>/dev/null || true
+  go build -o asgotopr . 2>/dev/null || true
   rm -rf "$DEMO_SCAN_ROOT"
   if [[ -n "$STATE_BACKUP" ]]; then
     rm -rf "$STATE_DIR"
@@ -74,7 +74,7 @@ demo_setup() {
   local repo pair target
   # Warm the (parked, now empty) state with the demo root's PRs so the first
   # popup renders the list instantly instead of an empty "refreshing…" frame.
-  HERDR_PLUGIN_STATE_DIR="$STATE_DIR" GOTOPR_ROOT="$DEMO_SCAN_ROOT" ./gotopr -dump >/dev/null
+  HERDR_PLUGIN_STATE_DIR="$STATE_DIR" ASGOTOPR_ROOT="$DEMO_SCAN_ROOT" ./asgotopr -dump >/dev/null
 
   demo_adopt_repo "$(demo_first_workspace)" "$DEMO_START_CWD"
   for repo in "${REPOS[@]}"; do demo_open_repo "$repo" >/dev/null; done

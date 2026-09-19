@@ -1,4 +1,4 @@
-module github.com/asumaran/gotopr
+module github.com/asumaran/asgotopr
 
 go 1.25.8
 

@@ -314,7 +314,7 @@ func TestQQuitsOnlyWithEmptyFilter(t *testing.T) {
 
 // TestMain sandboxes the state dir: tests must never touch the real one.
 func TestMain(m *testing.M) {
-	dir, err := os.MkdirTemp("", "gotopr-test")
+	dir, err := os.MkdirTemp("", "asgotopr-test")
 	if err != nil {
 		panic(err)
 	}

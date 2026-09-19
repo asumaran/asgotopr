@@ -3,7 +3,7 @@ package main
 // Filtering and ranking. Entries (one per PR, pre-grouped by repo) carry
 // three lowercased corpora matched independently per keystroke — title,
 // branch, and metadata (#number, Jira ticket, repo slug/dir name) — keeping
-// goto's behavior: typing "1234" finds PR #1234, typing a branch fragment
+// asgoto's behavior: typing "1234" finds PR #1234, typing a branch fragment
 // finds its PR, ticket keys work too. Only title matches produce highlight
 // indexes; branch/meta hits have nothing visible to highlight.
 

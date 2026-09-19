@@ -18,7 +18,7 @@ type switchedMsg struct{ err error }
 
 func stashCmd(repo localRepo, branch string) tea.Cmd {
 	return func() tea.Msg {
-		err := runGit(repo.Path, "stash", "push", "-u", "-m", "gotopr: switching to "+branch)
+		err := runGit(repo.Path, "stash", "push", "-u", "-m", "asgotopr: switching to "+branch)
 		return stashedMsg{err: err}
 	}
 }
