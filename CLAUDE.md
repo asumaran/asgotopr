@@ -15,7 +15,7 @@ is selected in the sidebar. Open, pick, exit — same lifecycle as
 
 Distributed as a herdr plugin (`herdr plugin install asumaran/asgotopr`; the
 manifest's `[[build]]` runs `scripts/fetch-binary.sh`). Each GitHub Release
-attaches `asgotopr-darwin-arm64`. There is no published library.
+attaches the `asgotopr-<os>-<arch>` binaries (macOS and Linux, arm64 and amd64). There is no published library.
 
 ## Stack & layout
 
@@ -185,6 +185,6 @@ argv) and never touches the real plugin state.
 
 `scripts/release.sh <X.Y.Z>` — clean-tree + vet/build/test gate, CHANGELOG
 generation from commit subjects, manifest version sync, commit + tag + GitHub
-release; CI (`.github/workflows/release.yml`) attaches `asgotopr-darwin-arm64`.
+release; CI (`.github/workflows/release.yml`) attaches the `asgotopr-<os>-<arch>` binaries (macOS and Linux, arm64 and amd64).
 Releasing never touches the linked plugin's `./asgotopr`; rebuild locally to
 keep testing dev code.

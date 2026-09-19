@@ -9,6 +9,7 @@ package main
 import (
 	"os"
 	"os/exec"
+	"runtime"
 	"strconv"
 	"strings"
 	"time"
@@ -769,10 +770,14 @@ func promptText() string {
 // lands in the profile the user last focused: plain `open` hands the URL to
 // Chrome, which then picks its own "last used" profile bookkeeping, and that
 // routinely disagrees with the window you were just looking at. Anything else
-// falls back to `open`.
+// falls back to `open`. Outside macOS it is xdg-open.
 func openURL(url string) {
 	if b := os.Getenv("ASGOTOPR_OPENER"); b != "" {
 		_ = exec.Command(b, url).Run()
+		return
+	}
+	if runtime.GOOS != "darwin" {
+		_ = exec.Command("xdg-open", url).Run()
 		return
 	}
 	if openInChromeFrontWindow(url) == nil {
