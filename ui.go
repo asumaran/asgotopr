@@ -44,18 +44,20 @@ func truncate(s string, width int) string {
 // ---- styles ----
 
 var (
-	stPrompt  = lipgloss.NewStyle().Foreground(lipgloss.Color("13")).Bold(true)
-	stDev     = lipgloss.NewStyle().Foreground(lipgloss.Color("208")).Bold(true)
-	stSel     = lipgloss.NewStyle().Background(lipgloss.Color("8")).Bold(true)
-	stMatch   = lipgloss.NewStyle().Foreground(lipgloss.Color("11"))
-	stHeader  = lipgloss.NewStyle().Foreground(lipgloss.Color("6")).Bold(true)
-	stDim     = lipgloss.NewStyle().Foreground(lipgloss.Color("8"))
-	stTitle   = lipgloss.NewStyle().Bold(true)
-	stError   = lipgloss.NewStyle().Foreground(lipgloss.Color("9")).Bold(true)
-	stKeyHint = lipgloss.NewStyle().Foreground(lipgloss.Color("11"))
-	stCount   = lipgloss.NewStyle().Foreground(lipgloss.Color("3"))
-	stPROpen  = lipgloss.NewStyle().Foreground(lipgloss.Color("10"))
-	stPRDraft = lipgloss.NewStyle().Foreground(lipgloss.Color("8"))
+	stPrompt = lipgloss.NewStyle().Foreground(lipgloss.Color("13")).Bold(true)
+	stDev    = lipgloss.NewStyle().Foreground(lipgloss.Color("208")).Bold(true)
+	stSel    = lipgloss.NewStyle().Background(lipgloss.Color("8")).Bold(true)
+	// a filter match: asgitlog's look, also over the selected row's background
+	stMatch    = lipgloss.NewStyle().Foreground(lipgloss.Color("13")).Underline(true)
+	stSelMatch = stSel.Foreground(lipgloss.Color("13")).Underline(true)
+	stHeader   = lipgloss.NewStyle().Foreground(lipgloss.Color("6")).Bold(true)
+	stDim      = lipgloss.NewStyle().Foreground(lipgloss.Color("8"))
+	stTitle    = lipgloss.NewStyle().Bold(true)
+	stError    = lipgloss.NewStyle().Foreground(lipgloss.Color("9")).Bold(true)
+	stKeyHint  = lipgloss.NewStyle().Foreground(lipgloss.Color("11"))
+	stCount    = lipgloss.NewStyle().Foreground(lipgloss.Color("3"))
+	stPROpen   = lipgloss.NewStyle().Foreground(lipgloss.Color("10"))
+	stPRDraft  = lipgloss.NewStyle().Foreground(lipgloss.Color("8"))
 
 	// preview header facts
 	stFactKey    = lipgloss.NewStyle().Foreground(lipgloss.Color("8"))
@@ -287,11 +289,11 @@ func (m *model) rowLine(r row, selected bool, numW, width int) string {
 	num := "#" + strconv.Itoa(r.e.pr.Number)
 	pad := strings.Repeat(" ", numW-len(num))
 	if selected {
-		line := truncate("▌ "+num+pad+" "+r.e.pr.Title, width)
+		line := truncate(stSel.Render("▌ "+num+pad+" ")+highlight(r.e.pr.Title, r.idx, true), width)
 		if n := width - ansi.StringWidth(line); n > 0 {
-			line += strings.Repeat(" ", n)
+			line += stSel.Render(strings.Repeat(" ", n))
 		}
-		return stSel.Render(line)
+		return line
 	}
 	numStyle := stPROpen
 	if r.e.pr.IsDraft {
@@ -299,25 +301,44 @@ func (m *model) rowLine(r row, selected bool, numW, width int) string {
 	}
 	title := r.e.pr.Title
 	if r.match && len(r.idx) > 0 {
-		title = highlight(title, r.idx)
+		title = highlight(title, r.idx, false)
 	}
 	return truncate("  "+numStyle.Render(num)+pad+" "+title, width)
 }
 
-// highlight styles the fuzzy-matched characters within a label.
-func highlight(label string, idx []int) string {
+// highlight styles the fuzzy-matched characters within a label. The selected
+// row keeps its background under them, so a match stays visible where the
+// cursor is.
+func highlight(label string, idx []int, selected bool) string {
+	plain, match := lipgloss.NewStyle(), stMatch
+	if selected {
+		plain, match = stSel, stSelMatch
+	}
 	set := make(map[int]bool, len(idx))
 	for _, i := range idx {
 		set[i] = true
 	}
-	var b strings.Builder
-	for i, r := range []rune(label) {
-		if set[i] {
-			b.WriteString(stMatch.Render(string(r)))
-		} else {
-			b.WriteRune(r)
+	var b, run strings.Builder
+	on := false
+	flush := func() {
+		if run.Len() == 0 {
+			return
 		}
+		if on {
+			b.WriteString(match.Render(run.String()))
+		} else {
+			b.WriteString(plain.Render(run.String()))
+		}
+		run.Reset()
 	}
+	for i, r := range []rune(label) {
+		if set[i] != on {
+			flush()
+			on = set[i]
+		}
+		run.WriteRune(r)
+	}
+	flush()
 	return b.String()
 }
 
