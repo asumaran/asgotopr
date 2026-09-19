@@ -12,8 +12,6 @@ import (
 	"sort"
 	"strconv"
 	"strings"
-
-	"github.com/sahilm/fuzzy"
 )
 
 // entry is one selectable PR with the local clone its action targets.
@@ -96,15 +94,15 @@ type hit struct {
 // per entry.
 func findHits(q string, titles, branches, metas []string) map[int]hit {
 	hits := map[int]hit{}
-	for _, mt := range fuzzy.Find(q, titles) {
+	for _, mt := range findTight(q, titles) {
 		hits[mt.Index] = hit{score: mt.Score, idx: mt.MatchedIndexes}
 	}
-	for _, mt := range fuzzy.Find(q, branches) {
+	for _, mt := range findTight(q, branches) {
 		if h, ok := hits[mt.Index]; !ok || mt.Score > h.score {
 			hits[mt.Index] = hit{score: mt.Score, branch: true}
 		}
 	}
-	for _, mt := range fuzzy.Find(q, metas) {
+	for _, mt := range findTight(q, metas) {
 		if h, ok := hits[mt.Index]; !ok || mt.Score > h.score {
 			hits[mt.Index] = hit{score: mt.Score}
 		}
