@@ -203,7 +203,7 @@ func TestFilterExactNumberBeatsFuzzy(t *testing.T) {
 	entries := testEntries()
 	titles, branches, metas := corpora(entries)
 	rows := buildRows(entries, "100", titles, branches, metas)
-	best := bestMatch(rows)
+	best := firstPR(rows)
 	if best < 0 || rows[best].e.pr.Number != 100 {
 		t.Fatalf("query 100: best = %v", best)
 	}
@@ -214,13 +214,13 @@ func TestFilterByBranchAndTicket(t *testing.T) {
 	titles, branches, metas := corpora(entries)
 
 	rows := buildRows(entries, "fed-123", titles, branches, metas)
-	best := bestMatch(rows)
+	best := firstPR(rows)
 	if best < 0 || rows[best].e.pr.Number != 205 {
 		t.Fatalf("ticket query: best row = %v", best)
 	}
 
 	rows = buildRows(entries, "docs/readme", titles, branches, metas)
-	best = bestMatch(rows)
+	best = firstPR(rows)
 	if best < 0 || rows[best].e.pr.Number != 7 {
 		t.Fatalf("branch query: best row = %v", best)
 	}
@@ -242,7 +242,7 @@ func TestFilterRepoNameSurfacesGroup(t *testing.T) {
 	if prCount != 2 {
 		t.Errorf("repo-name query matched %d PRs, want 2", prCount)
 	}
-	best := bestMatch(rows)
+	best := firstPR(rows)
 	// Tie on repo bonus: the non-draft, newer PR should win (draft -2).
 	if best < 0 || rows[best].e.pr.Number != 100 {
 		t.Fatalf("best for repo query = %v", best)
@@ -259,7 +259,7 @@ func TestUpdatedAtTiebreak(t *testing.T) {
 	}
 	titles, branches, metas := corpora(entries)
 	rows := buildRows(entries, "same title", titles, branches, metas)
-	best := bestMatch(rows)
+	best := firstPR(rows)
 	if best < 0 || rows[best].e.pr.URL != "new" {
 		t.Fatalf("tiebreak: best = %v, want the newer PR", best)
 	}

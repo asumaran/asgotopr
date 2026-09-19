@@ -51,6 +51,10 @@ the browser instead, `esc` closes (so does `q` while the filter is empty). The m
 wheel moves the selection over the list and scrolls the description anywhere
 else; clicking a PR selects it (enter still opens it).
 
+With a query the list is a search result: the best match comes first, with
+its group on top, and the cursor starts on it. Rows that match equally well
+stay in their usual order, most recently updated first.
+
 When the PR's branch needs a checkout switch and the working tree has
 uncommitted changes, asgotopr offers: `[s]` stash & switch (stash message
 `asgotopr: switching to <branch>`, findable later with `git stash list`; there

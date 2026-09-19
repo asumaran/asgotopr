@@ -175,8 +175,14 @@ Keybinding (user config): `prefix+d` / `ctrl+alt+d` → `plugin_action`
 - Same-origin twin clones: PR listed once under `primaryClone` (dir name ==
   remote repo name, else lexicographic); no per-clone duplicate rows.
 - Search corpus: title + branch + `#number`/ticket/slug/dirname metas; exact
-  PR number +30, exact repo name +10, branch hit +2, draft −2, ties broken by
-  newer `updatedAt`. Digits are plain search text.
+  PR number +30, exact repo name +10, branch hit +2, draft −2. Digits are
+  plain search text.
+- **A query makes the list a search result**: PRs are ranked, best match
+  first, the repo that holds it on top with its PRs kept together, and the
+  cursor sits on the first one (`rank` in `rank.go`, the same file in every
+  picker of the family). Equal scores go to the newer `updatedAt`. A score
+  says how good the match is and nothing about the length of the text
+  (`match.go`).
 
 ## Testing
 

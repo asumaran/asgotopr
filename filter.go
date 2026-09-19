@@ -133,47 +133,41 @@ func matchBonus(e *entry, h hit, q string) int {
 }
 
 // buildRows turns entries into display rows: a header per repo, then its PRs.
-// When filtering, only matching PRs (and their headers) survive.
+// When filtering, only matching PRs (and their headers) survive and they are
+// ranked: best match first, the repo that holds it on top.
 func buildRows(entries []*entry, q string, titles, branches, metas []string) []row {
 	filtering := q != ""
 	var hits map[int]hit
 	if filtering {
 		hits = findHits(q, titles, branches, metas)
 	}
-	var rows []row
-	lastSlug := ""
+	var prs []row
 	for i, e := range entries {
 		h, ok := hits[i]
 		if filtering && !ok {
 			continue
 		}
-		if e.pr.RepoSlug != lastSlug {
-			rows = append(rows, row{kind: "header", repo: e.repo})
-			lastSlug = e.pr.RepoSlug
-		}
 		score := 0
 		if filtering {
 			score = h.score + matchBonus(e, h, q)
 		}
-		rows = append(rows, row{kind: "pr", e: e, repo: e.repo, match: ok, score: score, idx: h.idx})
+		prs = append(prs, row{kind: "pr", e: e, repo: e.repo, match: ok, score: score, idx: h.idx})
+	}
+	if filtering {
+		// equal scores: the most recently updated PR first
+		sort.SliceStable(prs, func(i, j int) bool { return prs[i].e.pr.UpdatedAt.After(prs[j].e.pr.UpdatedAt) })
+		prs = rank(prs, func(r row) int { return r.score }, func(r row) string { return r.e.pr.RepoSlug })
+	}
+	var rows []row
+	lastSlug := ""
+	for _, r := range prs {
+		if r.e.pr.RepoSlug != lastSlug {
+			rows = append(rows, row{kind: "header", repo: r.repo})
+			lastSlug = r.e.pr.RepoSlug
+		}
+		rows = append(rows, r)
 	}
 	return rows
-}
-
-// bestMatch returns the index of the highest-scored matching PR row; ties go
-// to the most recently updated PR. -1 when nothing matches.
-func bestMatch(rows []row) int {
-	best := -1
-	for i, r := range rows {
-		if r.kind != "pr" || !r.match {
-			continue
-		}
-		if best == -1 || r.score > rows[best].score ||
-			(r.score == rows[best].score && r.e.pr.UpdatedAt.After(rows[best].e.pr.UpdatedAt)) {
-			best = i
-		}
-	}
-	return best
 }
 
 // firstPR returns the index of the first selectable row, or -1.
