@@ -1,3 +1,10 @@
+## v0.8.0 (2026-09-19)
+
+* feat(ui): mark matches like asgitlog, selected row too (3c29ce4)
+* feat(ui): show the list's position under the list (a564ef4)
+* docs(dev): link the plugin from the checkout with $PWD (6b87378)
+* ci: spend less time on CI and on releases (7f608b6)
+
 ## v0.7.0 (2026-09-19)
 
 * feat: support linux and share the release process (c5aec13)
