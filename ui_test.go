@@ -1,6 +1,7 @@
 package main
 
 import (
+	"os"
 	"strings"
 	"testing"
 	"time"
@@ -36,6 +37,7 @@ func testModel(t *testing.T) model {
 		help:    help.New(),
 		keys:    defaultKeys(),
 		renders: map[string]string{},
+		split:   splitDefault,
 		width:   120,
 		height:  30,
 	}
@@ -299,5 +301,57 @@ func TestQQuitsOnlyWithEmptyFilter(t *testing.T) {
 	res, _ = res.(model).handleKey(tea.KeyPressMsg{Code: 'q', Text: "q"})
 	if got := res.(model).ti.Value(); got != "xq" {
 		t.Errorf("filter = %q, want q typed as text", got)
+	}
+}
+
+// TestMain sandboxes the state dir: tests must never touch the real one.
+func TestMain(m *testing.M) {
+	dir, err := os.MkdirTemp("", "gotopr-test")
+	if err != nil {
+		panic(err)
+	}
+	os.Setenv("HERDR_PLUGIN_STATE_DIR", dir)
+	code := m.Run()
+	os.RemoveAll(dir)
+	os.Exit(code)
+}
+
+// TestResizeList: shift+arrows move the divider, the frame still fits, and
+// the position is there for the next run.
+func TestResizeList(t *testing.T) {
+	t.Setenv("HERDR_PLUGIN_STATE_DIR", t.TempDir())
+	next, _ := testModel(t).Update(tea.WindowSizeMsg{Width: 120, Height: 24})
+	m := next.(model)
+	m.split = splitDefault
+	m.resize()
+	w := m.listW()
+	shift := func(code rune) {
+		next, _ := m.Update(tea.KeyPressMsg{Code: code, Mod: tea.ModShift})
+		m = next.(model)
+	}
+
+	shift(tea.KeyRight)
+	if m.listW() <= w || m.split != splitDefault-splitStep || loadSplit(stateDir()) != m.split {
+		t.Errorf("grow: list %d -> %d, split=%d, saved=%d", w, m.listW(), m.split, loadSplit(stateDir()))
+	}
+	if m.listVP.Width() != m.listW() || m.prevVP.Width() != m.prevW() {
+		t.Errorf("viewports %d | %d, want %d | %d", m.listVP.Width(), m.prevVP.Width(), m.listW(), m.prevW())
+	}
+	for i, l := range strings.Split(m.View().Content, "\n") {
+		if got := ansi.StringWidth(l); got != m.width {
+			t.Errorf("line %d is %d cells after the resize, want %d", i, got, m.width)
+		}
+	}
+
+	shift(tea.KeyLeft)
+	shift(tea.KeyLeft)
+	if m.listW() >= w || m.split != splitDefault+splitStep {
+		t.Errorf("shrink: list %d -> %d, split=%d", w, m.listW(), m.split)
+	}
+	for range 10 {
+		shift(tea.KeyLeft)
+	}
+	if m.split != splitMax {
+		t.Errorf("split should clamp at %d, got %d", splitMax, m.split)
 	}
 }

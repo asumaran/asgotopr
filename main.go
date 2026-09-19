@@ -59,6 +59,7 @@ func main() {
 		prevVP:          viewport.New(viewport.WithWidth(40), viewport.WithHeight(17)),
 		help:            help.New(),
 		keys:            defaultKeys(),
+		split:           loadSplit(stateDir()),
 		renders:         map[string]string{},
 		previewStyle:    "dark",
 		width:           94,

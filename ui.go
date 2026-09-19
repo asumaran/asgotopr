@@ -74,12 +74,14 @@ type keyMap struct {
 	Cancel   key.Binding
 	PrevUp   key.Binding
 	PrevDown key.Binding
+	Shrink   key.Binding
+	Grow     key.Binding
 	Browse   key.Binding
 	Filter   key.Binding
 }
 
 func (k keyMap) ShortHelp() []key.Binding {
-	return []key.Binding{k.Filter, k.Up, k.Down, k.Select, k.Browse, k.PrevDown, k.Cancel}
+	return []key.Binding{k.Filter, k.Select, k.Browse, k.PrevDown, k.Shrink, k.Cancel}
 }
 func (k keyMap) FullHelp() [][]key.Binding { return [][]key.Binding{k.ShortHelp()} }
 
@@ -91,6 +93,8 @@ func defaultKeys() keyMap {
 		Cancel:   key.NewBinding(key.WithKeys("esc", "ctrl+c"), key.WithHelp("esc/q", "quit")),
 		PrevUp:   key.NewBinding(key.WithKeys("shift+up", "pgup"), key.WithHelp("⇧↑", "")),
 		PrevDown: key.NewBinding(key.WithKeys("shift+down", "pgdown"), key.WithHelp("⇧↓", "scroll desc")),
+		Shrink:   key.NewBinding(key.WithKeys("shift+left"), key.WithHelp("⇧←/⇧→", "resize")),
+		Grow:     key.NewBinding(key.WithKeys("shift+right")),
 		Browse:   key.NewBinding(key.WithKeys("ctrl+o"), key.WithHelp("^o", "browser")),
 		// Help-only entry: a binding without keys is disabled and the help
 		// bubble would skip it. Nothing ever matches against it.
@@ -140,6 +144,7 @@ type model struct {
 	keys    keyMap
 	width   int
 	height  int
+	split   int // the preview's share of the width, percent
 
 	// preview render cache
 	renders map[string]string
@@ -165,11 +170,11 @@ func (m *model) innerW() int { return max(20, m.width-2) }
 
 // listW is the list's share of the main section; the divider and the preview
 // take the rest.
-func (m *model) listW() int { return max(20, m.innerW()*30/100) }
+func (m *model) listW() int { w, _ := splitWidths(m.innerW(), m.split); return w }
 
 // detailsW is the preview's area, including the cell of padding on each
 // side; prevW is the text width inside it.
-func (m *model) detailsW() int { return max(12, m.innerW()-1-m.listW()) }
+func (m *model) detailsW() int { _, w := splitWidths(m.innerW(), m.split); return w }
 func (m *model) prevW() int    { return max(10, m.detailsW()-2) }
 
 // bodyH is the height of the main section: everything but the frame's own
@@ -182,6 +187,15 @@ func (m *model) resize() {
 	m.prevVP.SetWidth(m.prevW())
 	m.syncPreviewHeight()
 	m.help.SetWidth(max(0, m.width-4))
+}
+
+// resizeList moves the divider between the list and the preview by one step.
+func (m *model) resizeList(grow bool) tea.Cmd {
+	m.split = stepSplit(m.split, grow)
+	saveSplit(stateDir(), m.split)
+	m.resize()
+	m.renderList()
+	return m.updatePreview()
 }
 
 // syncPreviewHeight fits the body viewport under the header of the selected
@@ -580,6 +594,10 @@ func (m model) handleKey(msg tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 		m.cursor = nextPR(m.rows, m.cursor, +1)
 		m.renderList()
 		return m, m.updatePreview()
+	case key.Matches(msg, m.keys.Shrink):
+		return m, m.resizeList(false)
+	case key.Matches(msg, m.keys.Grow):
+		return m, m.resizeList(true)
 	case key.Matches(msg, m.keys.PrevUp):
 		m.prevVP.ScrollUp(3)
 		return m, nil

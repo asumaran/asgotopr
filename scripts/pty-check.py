@@ -104,8 +104,7 @@ def check(cond, msg):
 # One frame (see frame.go): top border with the counter, input, main edge,
 # list | preview, bottom edge, help, border. There is no context line. Mouse
 # reports are written for the framed screen: the list starts on line 3, column 1.
-def listw():
-    return max((COLS - 2) * 30 // 100, 20)
+def listw(): return max(COLS - 3 - (COLS - 2) * 75 // 100, 10)   # the default split: list 25%, preview 75%
 
 def left(f):  return [l[1:1 + listw()] for l in f[3:-3]]
 def right(f): return [l[listw() + 3:-1].rstrip() for l in f[3:-3]]
@@ -189,6 +188,17 @@ check(promptline(f6) == "gotopr (dev) ❯", "backspace clears the filter: %r" % 
 send(b"\x1b[1;2B"); pump(0.4)
 f7 = frame()
 check(right(f7)[3:] != right(f6)[3:], "shift+down scrolls the preview")
+
+# 6b. shift+right / shift+left move the divider and the position is saved
+def divider(f): return f[2].index("┬")
+def saved(): return open(os.path.join(state, "split-columns")).read().strip() if os.path.exists(os.path.join(state, "split-columns")) else ""
+at = divider(f7)
+send(b"\x1b[1;2C"); pump(0.5)
+f7b = frame(); dump("after shift+right", f7b)
+check(divider(f7b) > at and all(len(l) == COLS for l in f7b) and saved() == "70",
+      "shift+right grows the list and saves the split: %d -> %d (%r)" % (at, divider(f7b), saved()))
+send(b"\x1b[1;2D"); pump(0.5)
+check(divider(frame()) == at and saved() == "75", "shift+left shrinks it back: %d (%r)" % (divider(frame()), saved()))
 
 # 7. garbage scan over every frame captured so far
 allframes = "\n".join("\n".join(f) for f in (f0, f1, f2, f3, f3b, f4, f4b, f4c, f4d, f5, f6, f7))

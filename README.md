@@ -45,7 +45,8 @@ The filter input is focused on open — just type. Search is fuzzy over the PR
 title, the head branch, the PR number (`1234` finds `#1234`), the Jira ticket
 key in branch/title, and the repo name. `↑/↓` (or `ctrl+p`/`ctrl+n`) move
 between PRs, `shift+↓`/`shift+↑` (or PgDn/PgUp) scroll the description
-preview, `enter` opens the selected PR's checkout, `ctrl+o` opens the PR in
+preview, `shift+←`/`shift+→` resize the list (the split is remembered; the
+list takes a quarter of the width by default), `enter` opens the selected PR's checkout, `ctrl+o` opens the PR in
 the browser instead, `esc` closes (so does `q` while the filter is empty). The mouse
 wheel scrolls the description wherever the pointer is; clicking a PR selects
 it (enter still opens it).
