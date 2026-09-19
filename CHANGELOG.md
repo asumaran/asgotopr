@@ -1,3 +1,7 @@
+## v0.7.0 (2026-09-19)
+
+* feat: support linux and share the release process (c5aec13)
+
 ## v0.6.0 (2026-09-19)
 
 * refactor: rename gotopr to asgotopr (331c3e6)
