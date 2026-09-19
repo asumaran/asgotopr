@@ -622,19 +622,34 @@ func (m model) handleKey(msg tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 	return m, tea.Batch(cmd, m.updatePreview())
 }
 
-// handleMouse sends every wheel event to the description preview, wherever
-// the pointer is. Routing by column was tried and dropped: SGR mouse reports
-// carry no gesture phase, so trackpad inertia that starts over one column and
-// drifts over the other cannot be told apart from a new gesture, and any
-// time-based latch misroutes one case or the other. The list is driven by
-// the keys and by clicking a row. Outside modeFilter the wheel is ignored
-// (and the view stops requesting mouse reports at all).
+// handleMouse routes the wheel by the pointer, as asgitlog does: over the
+// list it moves the selection, anywhere else it scrolls the description.
+// Sending every event to the preview was the rule for a while, because SGR
+// mouse reports carry no gesture phase and trackpad inertia that drifts from
+// one column to the other cannot be told apart from a new gesture; a list the
+// wheel does nothing on turned out to be the worse of the two. Outside
+// modeFilter the wheel is ignored (and the view stops requesting mouse reports
+// at all).
 func (m model) handleMouse(msg tea.MouseWheelMsg) (tea.Model, tea.Cmd) {
 	if m.mode != modeFilter {
 		return m, nil
 	}
+	if m.overList(msg.X, msg.Y) {
+		switch msg.Button {
+		case tea.MouseWheelUp:
+			return m.handleKey(tea.KeyPressMsg{Code: tea.KeyUp})
+		case tea.MouseWheelDown:
+			return m.handleKey(tea.KeyPressMsg{Code: tea.KeyDown})
+		}
+		return m, nil
+	}
 	m.prevVP, _ = m.prevVP.Update(msg)
 	return m, nil
+}
+
+// overList reports whether a screen cell is inside the list.
+func (m *model) overList(x, y int) bool {
+	return m.mode == modeFilter && x >= 1 && x <= m.listW() && y >= listY(false) && y < listY(false)+m.bodyH()
 }
 
 // handleClick moves the selection to the PR row under a left click on the
@@ -642,8 +657,7 @@ func (m model) handleMouse(msg tea.MouseWheelMsg) (tea.Model, tea.Cmd) {
 // switch branches. The list starts on screen row listY(false), inside the frame's
 // left side, and is offset by its scroll position.
 func (m model) handleClick(msg tea.MouseClickMsg) (tea.Model, tea.Cmd) {
-	if m.mode != modeFilter || msg.Button != tea.MouseLeft || msg.X < 1 || msg.X > m.listW() ||
-		msg.Y < listY(false) || msg.Y >= listY(false)+m.bodyH() {
+	if msg.Button != tea.MouseLeft || !m.overList(msg.X, msg.Y) {
 		return m, nil
 	}
 	i := msg.Y - listY(false) + m.listVP.YOffset()

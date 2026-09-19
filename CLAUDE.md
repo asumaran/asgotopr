@@ -139,12 +139,14 @@ Keybinding (user config): `prefix+d` / `ctrl+alt+d` → `plugin_action`
   (renders carry the style they used and stale ones are dropped). Don't call
   glamour's `WithAutoStyle` or lipgloss's `HasDarkBackground` from inside the
   program: their OSC reply would race the input reader.
-- **Mouse**: the wheel always scrolls the description preview, wherever the
-  pointer is. Routing by column (and a per-gesture latch to survive trackpad
-  inertia) was tried and dropped: SGR reports carry no gesture phase, so
-  inertia drifting over the other column is indistinguishable from a new
-  gesture and every time-based heuristic misroutes one of the two. The list
-  is driven by the keys; a left click on a list row moves the selection there
+- **Mouse**: the wheel follows the pointer, as in asgitlog: over the list it
+  moves the selection (`overList`, one PR per report, through the same code as
+  the arrow keys), anywhere else it scrolls the description preview. For a
+  while every report went to the preview, because SGR reports carry no gesture
+  phase and trackpad inertia drifting over the other column cannot be told
+  from a new gesture; a list the wheel did nothing on was the worse of the
+  two. Do not add a time-based latch: every one tried misrouted one case or
+  the other. A left click on a list row moves the selection there
   (`handleClick`: row = Y-listY + list YOffset, inside the frame's left side) and never opens the PR; opening
   stays on enter. The mouse mode is declared per frame in `View()`
   (`MouseModeCellMotion` in modeFilter, `MouseModeNone` in the

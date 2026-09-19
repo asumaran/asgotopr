@@ -117,24 +117,30 @@ func wheelUp(x int) tea.MouseWheelMsg {
 	return tea.MouseWheelMsg{X: x, Y: 5, Button: tea.MouseWheelUp}
 }
 
-func TestMouseWheelScrollsPreviewFromEitherColumn(t *testing.T) {
+// TestMouseWheelFollowsThePointer: over the list the wheel moves the
+// selection, as in asgitlog; anywhere else it scrolls the preview.
+func TestMouseWheelFollowsThePointer(t *testing.T) {
 	m := testModel(t)
-	m.prevVP.SetContent(strings.Repeat("line\n", 100))
 	first := m.cursor
 	res, _ := m.Update(wheelDown(2)) // pointer over the list
 	m = res.(model)
-	if m.cursor != first || m.prevVP.YOffset() == 0 {
-		t.Errorf("wheel over list: cursor=%d (was %d) preview=%d, want cursor unchanged and preview>0", m.cursor, first, m.prevVP.YOffset())
-	}
-	before := m.prevVP.YOffset()
-	res, _ = m.Update(wheelDown(m.listW() + 10)) // pointer over the preview
-	m = res.(model)
-	if m.prevVP.YOffset() <= before || m.cursor != first {
-		t.Errorf("wheel over preview: cursor=%d preview=%d, want cursor=%d preview>%d", m.cursor, m.prevVP.YOffset(), first, before)
+	if m.cursor <= first || m.rows[m.cursor].kind != "pr" {
+		t.Errorf("wheel down over the list: cursor=%d (was %d), want the next PR", m.cursor, first)
 	}
 	res, _ = m.Update(wheelUp(2))
-	after := res.(model)
-	if after.prevVP.YOffset() >= m.prevVP.YOffset() {
+	m = res.(model)
+	if m.cursor != first {
+		t.Errorf("wheel up over the list: cursor=%d, want %d", m.cursor, first)
+	}
+
+	m.prevVP.SetContent(strings.Repeat("line\n", 100))
+	res, _ = m.Update(wheelDown(m.listW() + 10)) // pointer over the preview
+	m = res.(model)
+	if m.prevVP.YOffset() == 0 || m.cursor != first {
+		t.Errorf("wheel over the preview: cursor=%d preview=%d, want cursor=%d preview>0", m.cursor, m.prevVP.YOffset(), first)
+	}
+	res, _ = m.Update(wheelUp(m.listW() + 10))
+	if after := res.(model); after.prevVP.YOffset() >= m.prevVP.YOffset() {
 		t.Errorf("wheel up did not scroll the preview back: %d -> %d", m.prevVP.YOffset(), after.prevVP.YOffset())
 	}
 }
@@ -145,21 +151,23 @@ func TestMouseWheelBurstNeverTypesIntoFilter(t *testing.T) {
 	first := m.cursor
 	var mm tea.Model = m
 	for i := 0; i < 200; i++ {
-		x := 2
-		if i%2 == 1 {
-			x = m.listW() + 10
-		}
-		mm, _ = mm.Update(wheelDown(x))
+		mm, _ = mm.Update(wheelDown(m.listW() + 10))
 	}
 	got := mm.(model)
 	if got.ti.Value() != "" {
 		t.Errorf("filter got mouse text %q", got.ti.Value())
 	}
 	if got.cursor != first {
-		t.Errorf("burst moved the selection: cursor=%d want %d", got.cursor, first)
+		t.Errorf("a burst over the preview moved the selection: cursor=%d want %d", got.cursor, first)
 	}
 	if got.prevVP.YOffset() == 0 {
 		t.Errorf("burst did not scroll the preview")
+	}
+	for i := 0; i < 200; i++ { // and over the list: it stops on the last PR
+		mm, _ = mm.Update(wheelDown(2))
+	}
+	if got = mm.(model); got.ti.Value() != "" || got.rows[got.cursor].kind != "pr" {
+		t.Errorf("burst over the list: filter=%q cursor on %q", got.ti.Value(), got.rows[got.cursor].kind)
 	}
 }
 

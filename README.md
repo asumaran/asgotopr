@@ -48,8 +48,8 @@ between PRs, `shift+↓`/`shift+↑` (or PgDn/PgUp) scroll the description
 preview, `shift+←`/`shift+→` resize the list (the split is remembered; the
 list takes a quarter of the width by default), `enter` opens the selected PR's checkout, `ctrl+o` opens the PR in
 the browser instead, `esc` closes (so does `q` while the filter is empty). The mouse
-wheel scrolls the description wherever the pointer is; clicking a PR selects
-it (enter still opens it).
+wheel moves the selection over the list and scrolls the description anywhere
+else; clicking a PR selects it (enter still opens it).
 
 When the PR's branch needs a checkout switch and the working tree has
 uncommitted changes, gotopr offers: `[s]` stash & switch (stash message

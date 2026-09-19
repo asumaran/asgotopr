@@ -137,24 +137,24 @@ check(left(f1) == left(f0), "list column unchanged by preview wheel")
 check(right(f1)[:2] == right(f0)[:2], "preview header unchanged")
 check(right(f1)[3:] != right(f0)[3:], "preview body shifted")
 
-# 2. wheel over the list also scrolls the preview and never moves the selection
+# 2. over the list the wheel moves the selection (as in asgitlog), one PR per report
+def selected(f): return next((l.strip() for l in left(f) if "▌" in l), "")
 send(b"\x1b[<64;71;10M" * 60); pump(0.5)  # wheel-up over the preview: back to the top
 f1b = frame()
 check(right(f1b) == right(f0), "wheel-up over the preview returns it to the top")
 send(b"\x1b[<65;6;10M"); pump(0.5)
 f2 = frame(); dump("after 1x wheel-down over list", f2)
 check(promptline(f2) == "gotopr (dev) \u276f", "prompt still clean after list wheel: %r" % f2[1])
-check(left(f2) == left(f0), "wheel over the list leaves the selection alone")
-check(right(f2)[3:] != right(f0)[3:], "wheel over the list scrolls the preview body")
+check(selected(f2) and selected(f2) != selected(f0), "wheel over the list moves the selection: %r -> %r" % (selected(f0), selected(f2)))
 
-# 3. a burst over the list keeps the selection and keeps scrolling the preview
+# 3. a burst over the list runs to the last PR and back, and never types into the filter
 send(b"\x1b[<65;6;10M" * 60); pump(0.5)
 f3 = frame(); dump("after 60x wheel-down over list", f3)
 check(promptline(f3) == "gotopr (dev) \u276f", "prompt still clean after list burst: %r" % f3[1])
-check(left(f3) == left(f0), "list burst leaves the selection alone")
+check(selected(f3) not in ("", selected(f2)), "list burst keeps moving the selection: %r" % selected(f3))
 send(b"\x1b[<64;6;10M" * 60); pump(0.5)
 f3b = frame()
-check(right(f3b) == right(f0), "wheel-up over the list scrolls the preview back to the top")
+check(selected(f3b) == selected(f0) and right(f3b) == right(f0), "wheel-up over the list goes back to the first PR: %r" % selected(f3b))
 
 # 4. arrow down still moves the selection (key map unchanged)
 send(b"\x1b[B"); pump(0.5)
