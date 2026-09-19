@@ -1,3 +1,7 @@
+## v0.6.0 (2026-09-19)
+
+* refactor: rename gotopr to asgotopr (331c3e6)
+
 ## v0.5.0 (2026-09-19)
 
 * feat(mouse): move the selection with the wheel over the list (193dc01)
