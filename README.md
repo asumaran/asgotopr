@@ -44,8 +44,10 @@ description = "asgotopr (PR switcher)"
 The filter input is focused on open — just type. Search is fuzzy over the PR
 title, the head branch, the PR number (`1234` finds `#1234`), the Jira ticket
 key in branch/title, and the repo name. `↑/↓` (or `ctrl+p`/`ctrl+n`) move
-between PRs, `shift+↓`/`shift+↑` (or PgDn/PgUp) scroll the description
-preview, `shift+←`/`shift+→` resize the list (the split is remembered; the
+between PRs, PgDn/PgUp move a page, `alt+↑`/`alt+↓` (or Home/End) go to the
+top or the bottom of the list, `shift+↓`/`shift+↑` scroll the description
+preview, `?` (while the filter is empty) or `f1` expands the help line into
+every key, `shift+←`/`shift+→` resize the list (the split is remembered; the
 list takes a quarter of the width by default), `enter` opens the selected PR's checkout, `ctrl+o` opens the PR in
 the browser instead, `esc` closes (so does `q` while the filter is empty). The mouse
 wheel moves the selection over the list and scrolls the description anywhere

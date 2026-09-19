@@ -179,14 +179,3 @@ func firstPR(rows []row) int {
 	}
 	return -1
 }
-
-// nextPR walks from cur in direction dir (+1/-1) to the next selectable row,
-// returning cur when there is none.
-func nextPR(rows []row, cur, dir int) int {
-	for i := cur + dir; i >= 0 && i < len(rows); i += dir {
-		if rows[i].kind == "pr" {
-			return i
-		}
-	}
-	return cur
-}

@@ -191,11 +191,12 @@ func TestBuildRowsGroupingAndNavigation(t *testing.T) {
 		t.Errorf("firstPR = %d, want 1", got)
 	}
 	// Down from the last PR stays put; up from a PR after a header skips it.
-	if got := nextPR(rows, 4, +1); got != 4 {
-		t.Errorf("nextPR down from last = %d, want 4", got)
+	nav, isPR := defaultListNav(), func(i int) bool { return rows[i].kind == "pr" }
+	if got := nav.move(tea.KeyPressMsg{Code: tea.KeyDown}, 4, len(rows), 10, isPR); got != 4 {
+		t.Errorf("down from the last PR = %d, want 4", got)
 	}
-	if got := nextPR(rows, 4, -1); got != 2 {
-		t.Errorf("nextPR up over header = %d, want 2", got)
+	if got := nav.move(tea.KeyPressMsg{Code: tea.KeyUp}, 4, len(rows), 10, isPR); got != 2 {
+		t.Errorf("up over a header = %d, want 2", got)
 	}
 }
 
