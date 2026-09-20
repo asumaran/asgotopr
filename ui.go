@@ -44,8 +44,6 @@ func truncate(s string, width int) string {
 // ---- styles ----
 
 var (
-	stPrompt  = lipgloss.NewStyle().Foreground(lipgloss.Color("13")).Bold(true)
-	stDev     = lipgloss.NewStyle().Foreground(lipgloss.Color("208")).Bold(true)
 	stHeader  = lipgloss.NewStyle().Foreground(lipgloss.Color("6")).Bold(true)
 	stDim     = lipgloss.NewStyle().Foreground(lipgloss.Color("8"))
 	stTitle   = lipgloss.NewStyle().Bold(true)
@@ -218,6 +216,7 @@ func (m *model) resize() {
 	m.prevVP.SetWidth(m.prevW())
 	m.syncPreviewHeight()
 	m.help.SetWidth(max(0, m.width-4))
+	sizeInput(&m.ti, m.width-4)
 }
 
 // resizeList moves the divider between the list and the preview by one step.
@@ -693,7 +692,7 @@ func (m model) View() tea.View {
 // line: nothing here needs one.
 func (m model) render() string {
 	w := m.width
-	out := frameHead(w, "", m.counter(), m.ti.View())
+	out := frameHead(w, "", withDevMark(m.counter()), m.ti.View())
 	pos := ""
 	if m.mode == modeFilter && m.currentRow() != nil {
 		pos = scrollPos(&m.prevVP)
@@ -770,15 +769,6 @@ func (m model) footLines() []string {
 		return []string{msg}
 	}
 	return helpLines(m.help, m.keys, m.width-4, m.footH())
-}
-
-// promptText builds the textinput prompt, with an orange "(dev)" marker on
-// non-release builds.
-func promptText() string {
-	if strings.HasPrefix(version, "v") {
-		return stPrompt.Render("asgotopr ❯ ")
-	}
-	return stPrompt.Render("asgotopr (") + stDev.Render("dev") + stPrompt.Render(") ❯ ")
 }
 
 // openURL opens a PR in the browser. ASGOTOPR_OPENER, when set, is used as-is

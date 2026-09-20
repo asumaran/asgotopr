@@ -17,10 +17,8 @@ import (
 	"time"
 
 	"charm.land/bubbles/v2/help"
-	"charm.land/bubbles/v2/textinput"
 	"charm.land/bubbles/v2/viewport"
 	tea "charm.land/bubbletea/v2"
-	"charm.land/lipgloss/v2"
 )
 
 // version is the release tag; overridden at build time via
@@ -54,7 +52,7 @@ func main() {
 		cache:           cache,
 		refreshing:      stale,
 		pendingSearches: 2,
-		ti:              newFilterInput(),
+		ti:              newFilterInput("asgotopr", "Search by title, branch, #number, repo…"),
 		listVP:          viewport.New(viewport.WithWidth(50), viewport.WithHeight(20)),
 		prevVP:          viewport.New(viewport.WithWidth(40), viewport.WithHeight(17)),
 		help:            help.New(),
@@ -81,20 +79,6 @@ func main() {
 	}
 	final := res.(model)
 	runAction(final.action, final.browse)
-}
-
-// newFilterInput builds the focused filter textinput with the asgotopr prompt.
-// The prompt string already carries its colors, so the prompt style is left
-// empty.
-func newFilterInput() textinput.Model {
-	ti := textinput.New()
-	ti.Prompt = promptText()
-	st := ti.Styles()
-	st.Focused.Prompt = lipgloss.NewStyle()
-	st.Blurred.Prompt = lipgloss.NewStyle()
-	ti.SetStyles(st)
-	ti.Focus()
-	return ti
 }
 
 // runDump prints the discovered state without a TUI: repos, grouped PRs with

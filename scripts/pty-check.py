@@ -108,7 +108,11 @@ def listw(): return max(COLS - 3 - (COLS - 2) * 75 // 100, 10)   # the default s
 
 def left(f):  return [l[1:1 + listw()] for l in f[3:-3]]
 def right(f): return [l[listw() + 3:-1].rstrip() for l in f[3:-3]]
-def promptline(f): return f[1].strip("│ ").rstrip()
+# The input line: the prompt and what is typed (or the placeholder). A build
+# that is not a release says "(dev)" after the counter, on the edge over the
+# input; devmark() says so.
+def promptline(f): return f[1].strip("│ ").rstrip().removesuffix("(dev)").rstrip()
+def devmark(f): return any(l.rstrip("╮┤─ ").endswith("(dev)") for l in f[:4])
 
 def dump(title, f):
     print("--- %s ---" % title)
@@ -118,10 +122,11 @@ def dump(title, f):
 print("== asgotopr pty driver (%s background, %dx%d) ==" % (BG, COLS, ROWS))
 for _ in range(50):
     pump(0.1)
-    if "asgotopr (dev) ❯" in "\n".join(frame()): break
+    if "asgotopr ❯" in "\n".join(frame()): break
 pump(0.6)
 f0 = frame(); dump("initial frame", f0)
-check(promptline(f0) == "asgotopr (dev) ❯", "prompt line is clean: %r" % f0[1])
+check(promptline(f0) == "asgotopr ❯ Search by title, branch, #number, repo…", "prompt line is clean: %r" % f0[1])
+check(devmark(f0), "a dev build says so after the counter, on the edge over the input")
 check(f0[0].startswith("╭") and f0[-1].startswith("╰") and "15/15" in f0[0] and "┬" in f0[2],
       "one frame: counter on the top border, input right under it, no title line")
 check("type filter" in f0[-2] and "esc/q quit" in f0[-2], "help shows the filter hint and the quit keys: %r" % f0[-2])
@@ -132,7 +137,7 @@ check(b"\x1b[?1049h" in raw, "program entered the alt screen")
 # 1. burst over the preview (60 wheel-down reports in one write)
 send(b"\x1b[<65;71;10M" * 60); pump(0.5)
 f1 = frame(); dump("after 60x wheel-down over preview", f1)
-check(promptline(f1) == "asgotopr (dev) ❯", "prompt still clean after preview burst: %r" % f1[1])
+check(promptline(f1) == "asgotopr ❯ Search by title, branch, #number, repo…", "prompt still clean after preview burst: %r" % f1[1])
 check(left(f1) == left(f0), "list column unchanged by preview wheel")
 check(right(f1)[:2] == right(f0)[:2], "preview header unchanged")
 check(right(f1)[3:] != right(f0)[3:], "preview body shifted")
@@ -144,13 +149,13 @@ f1b = frame()
 check(right(f1b) == right(f0), "wheel-up over the preview returns it to the top")
 send(b"\x1b[<65;6;10M"); pump(0.5)
 f2 = frame(); dump("after 1x wheel-down over list", f2)
-check(promptline(f2) == "asgotopr (dev) \u276f", "prompt still clean after list wheel: %r" % f2[1])
+check(promptline(f2) == "asgotopr ❯ Search by title, branch, #number, repo…", "prompt still clean after list wheel: %r" % f2[1])
 check(selected(f2) and selected(f2) != selected(f0), "wheel over the list moves the selection: %r -> %r" % (selected(f0), selected(f2)))
 
 # 3. a burst over the list runs to the last PR and back, and never types into the filter
 send(b"\x1b[<65;6;10M" * 60); pump(0.5)
 f3 = frame(); dump("after 60x wheel-down over list", f3)
-check(promptline(f3) == "asgotopr (dev) \u276f", "prompt still clean after list burst: %r" % f3[1])
+check(promptline(f3) == "asgotopr ❯ Search by title, branch, #number, repo…", "prompt still clean after list burst: %r" % f3[1])
 check(selected(f3) not in ("", selected(f2)), "list burst keeps moving the selection: %r" % selected(f3))
 send(b"\x1b[<64;6;10M" * 60); pump(0.5)
 f3b = frame()
@@ -178,11 +183,11 @@ check(left(f4d) == left(f4b), "click on the preview changes nothing")
 # 5. typing still filters; backspace clears
 send(b"gamma"); pump(0.5)
 f5 = frame(); dump("after typing 'gamma'", f5)
-check(promptline(f5) == "asgotopr (dev) ❯ gamma", "typed text lands in the filter: %r" % f5[1])
+check(promptline(f5) == "asgotopr ❯ gamma", "typed text lands in the filter: %r" % f5[1])
 check(not any("alpha" == l.strip() for l in left(f5)), "filter narrowed the list (no alpha header)")
 send(b"\x7f" * 5); pump(0.4)
 f6 = frame()
-check(promptline(f6) == "asgotopr (dev) ❯", "backspace clears the filter: %r" % f6[1])
+check(promptline(f6) == "asgotopr ❯ Search by title, branch, #number, repo…", "backspace clears the filter: %r" % f6[1])
 
 # 6. shift+down scrolls the preview from the keyboard (key map unchanged)
 send(b"\x1b[1;2B"); pump(0.4)
@@ -222,7 +227,7 @@ os.close(slave)
 screen = pyte.Screen(COLS, ROWS); stream = pyte.ByteStream(screen); raw = bytearray(); answered = 0
 for _ in range(50):
     pump(0.1)
-    if "asgotopr (dev) \u276f" in "\n".join(frame()): break
+    if "asgotopr ❯" in "\n".join(frame()): break
 pump(0.4)
 f9 = frame()
 sel = [l for l in left(f9) if "\u258c" in l]
