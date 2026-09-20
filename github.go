@@ -263,14 +263,6 @@ func ghGraphQL(ctx context.Context, query string, vars map[string]string) ([]byt
 	return out, nil
 }
 
-func firstLine(s string) string {
-	s = strings.TrimSpace(s)
-	if i := strings.IndexByte(s, '\n'); i >= 0 {
-		s = s[:i]
-	}
-	return s
-}
-
 // fetchSearch runs one search (role = "author" | "assignee") and returns the
 // open PRs for that role, without bodies.
 func fetchSearch(role string) ([]prItem, error) {

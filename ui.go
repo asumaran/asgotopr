@@ -22,20 +22,6 @@ import (
 	"charm.land/lipgloss/v2"
 )
 
-func herdrBin() string {
-	if b := os.Getenv("HERDR_BIN_PATH"); b != "" {
-		return b
-	}
-	return "herdr"
-}
-
-func homeRel(p string) string {
-	if h, err := os.UserHomeDir(); err == nil && strings.HasPrefix(p, h) {
-		return "~" + strings.TrimPrefix(p, h)
-	}
-	return p
-}
-
 // ---- styles ----
 
 var (
