@@ -289,7 +289,7 @@ func TestFrameGeometry(t *testing.T) {
 	}
 	plain := strings.Split(ansi.Strip(m.View().Content), "\n")
 	if !strings.HasPrefix(plain[0], "╭") || !strings.HasPrefix(plain[len(plain)-1], "╰") ||
-		!strings.Contains(plain[mainY(false)], "┬") || !strings.Contains(plain[0], "2/2") {
+		!strings.Contains(plain[mainY(false)], "┬") || !strings.Contains(plain[len(plain)-3], "─ 2/2 ─┴") {
 		t.Errorf("frame sections misplaced:\n%s", strings.Join(plain, "\n"))
 	}
 	if !strings.Contains(plain[len(plain)-2], "type filter") || !strings.Contains(plain[len(plain)-2], "esc/q quit") {

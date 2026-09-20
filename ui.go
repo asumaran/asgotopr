@@ -653,13 +653,13 @@ func (m model) View() tea.View {
 // line: nothing here needs one.
 func (m model) render() string {
 	w := m.width
-	out := frameHead(w, "", withDevMark(m.counter()), m.ti.View())
+	out := frameHead(w, "", withDevMark(m.status()), m.ti.View())
 	pos := ""
 	if m.mode == modeFilter && m.currentRow() != nil {
 		pos = scrollPos(&m.prevVP)
 	}
 	out = append(out, splitMain(m.listLines(), strings.Split(m.rightColumn(), "\n"),
-		m.listW(), m.detailsW(), listPos(&m.listVP, func(i int) bool { return i < len(m.rows) && m.rows[i].kind != "header" }), pos)...)
+		m.listW(), m.detailsW(), m.counter(), pos)...)
 	for _, l := range m.footLines() {
 		out = append(out, framed(w, l))
 	}
@@ -667,7 +667,7 @@ func (m model) render() string {
 	return strings.Join(out, "\n")
 }
 
-// counter is the matches/total count, with the refresh mark.
+// counter is the matches/total count, for the edge under the list.
 func (m model) counter() string {
 	n := 0
 	for _, r := range m.rows {
@@ -675,11 +675,15 @@ func (m model) counter() string {
 			n++
 		}
 	}
-	s := stCount.Render(strconv.Itoa(n) + "/" + strconv.Itoa(len(m.entries)))
+	return stCount.Render(strconv.Itoa(n) + "/" + strconv.Itoa(len(m.entries)))
+}
+
+// status is the refresh mark, for the edge over the input.
+func (m model) status() string {
 	if m.refreshing {
-		s += stDim.Render(" refreshing…")
+		return stDim.Render("refreshing…")
 	}
-	return s
+	return ""
 }
 
 // listLines is the list as exactly bodyH lines of listW cells.
@@ -716,7 +720,7 @@ func (m model) rightColumn() string {
 }
 
 // footer is the key help, or the network error while there is one. The
-// refresh mark lives next to the counter.
+// refresh mark lives on the edge over the input.
 // footMsg is what takes the help's place while there is something to say.
 func (m model) footMsg() string {
 	if m.netErr != "" {

@@ -9,7 +9,7 @@ never touches the real plugin state.
 
 Usage: scripts/pty-check.py ./asgotopr [dark|light]   (needs python3 + pyte)
 """
-import datetime, fcntl, json, os, pty, select, shutil, struct, subprocess, sys, tempfile, termios, time
+import datetime, fcntl, json, os, pty, select, shutil, struct, subprocess, sys, tempfile, termios, time, re
 import pyte
 
 BIN = os.path.abspath(sys.argv[1])
@@ -109,7 +109,7 @@ def listw(): return max(COLS - 3 - (COLS - 2) * 75 // 100, 10)   # the default s
 def left(f):  return [l[1:1 + listw()] for l in f[3:-3]]
 def right(f): return [l[listw() + 3:-1].rstrip() for l in f[3:-3]]
 # The input line: the prompt and what is typed (or the placeholder). A build
-# that is not a release says "(dev)" after the counter, on the edge over the
+# that is not a release says "(dev)" at the end of the edge over the
 # input; devmark() says so.
 def promptline(f): return f[1].strip("│ ").rstrip().removesuffix("(dev)").rstrip()
 def devmark(f): return any(l.rstrip("╮┤─ ").endswith("(dev)") for l in f[:4])
@@ -126,9 +126,9 @@ for _ in range(50):
 pump(0.6)
 f0 = frame(); dump("initial frame", f0)
 check(promptline(f0) == "asgotopr ❯ Search by title, branch, #number, repo…", "prompt line is clean: %r" % f0[1])
-check(devmark(f0), "a dev build says so after the counter, on the edge over the input")
-check(f0[0].startswith("╭") and f0[-1].startswith("╰") and "15/15" in f0[0] and "┬" in f0[2],
-      "one frame: counter on the top border, input right under it, no title line")
+check(devmark(f0), "a dev build says so on the edge over the input")
+check(f0[0].startswith("╭") and f0[-1].startswith("╰") and "┬" in f0[2] and any(" 15/15 ─┴" in l for l in f0),
+      "one frame: input right under the top border, no title line, counter on the edge under the list")
 check("type filter" in f0[-2] and "esc/q quit" in f0[-2], "help shows the filter hint and the quit keys: %r" % f0[-2])
 check("▌" in f0[1] or any("▌" in l for l in left(f0)), "selection marker visible in list")
 check(b"\x1b[?1002h" in raw and b"\x1b[?1006h" in raw, "program requested cell-motion + SGR mouse modes")
