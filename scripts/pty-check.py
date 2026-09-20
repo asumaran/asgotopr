@@ -139,6 +139,16 @@ check("▌" in f0[1] or any("▌" in l for l in left(f0)), "selection marker vis
 check(b"\x1b[?1002h" in raw and b"\x1b[?1006h" in raw, "program requested cell-motion + SGR mouse modes")
 check(b"\x1b[?1049h" in raw, "program entered the alt screen")
 
+# The panel: f1 lays the keys alone (no options here) over the frame, takes the keys, and esc closes it.
+send(b"\x1bOP"); pump(0.6); p = frame(); dump("panel", p)
+check(len(p) == len(f0) and any("╭─ help " in l for l in p) and any("Keys" in l for l in p) and not any("Options" in l for l in p),
+      "f1 opens the panel over a frame that keeps its size")
+send(b"zz"); pump(0.4); send(b"\x1b"); pump(0.6); p = frame()
+check(proc.poll() is None and not any("╭─ help " in l for l in p) and promptline(p) == promptline(f0), "esc closes the panel, which took the keys: %r" % promptline(p))
+send(b"?"); pump(0.5); p = frame()
+check(promptline(p).endswith("?"), "? is text for the filter: %r" % promptline(p))
+send(b"\x7f"); pump(0.6)
+
 # 1. burst over the preview (60 wheel-down reports in one write)
 send(b"\x1b[<65;71;10M" * 60); pump(0.5)
 f1 = frame(); dump("after 60x wheel-down over preview", f1)

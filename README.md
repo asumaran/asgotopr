@@ -46,7 +46,7 @@ title, the head branch, the PR number (`1234` finds `#1234`), the Jira ticket
 key in branch/title, and the repo name. `↑/↓` (or `ctrl+p`/`ctrl+n`) move
 between PRs, PgDn/PgUp move a page, `alt+↑`/`alt+↓` (or Home/End) go to the
 top or the bottom of the list, `shift+↓`/`shift+↑` scroll the description
-preview, `?` (while the filter is empty) or `f1` expands the help line into
+preview, `f1` opens a panel with
 every key, `shift+←`/`shift+→` resize the list (the split is remembered; the
 list takes a quarter of the width by default), `enter` opens the selected PR's checkout, `ctrl+o` opens the PR in
 the browser instead, `ctrl+y` copies its URL (the help line says so for a moment), `esc` closes (so does `q` while the filter is empty). The mouse

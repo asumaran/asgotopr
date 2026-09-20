@@ -399,23 +399,57 @@ func TestCopyKeyCopiesTheURL(t *testing.T) {
 	}
 }
 
-// TestFlashKeepsTheFrameWhileTheHelpIsExpanded: a flash folds the expanded
-// help for a moment, and the sections must take the lines it gives back.
-func TestFlashKeepsTheFrameWhileTheHelpIsExpanded(t *testing.T) {
+// TestPanel: f1 lays the keys over a frame that keeps its size, takes
+// every key while it is open, and esc closes it before it quits. `?` is text
+// for the filter. This tool has no options, so the panel lists the keys alone.
+func TestPanel(t *testing.T) {
 	m := testModel(t)
-	res, _ := m.Update(tea.KeyPressMsg{Code: tea.KeyF1})
-	m = res.(model)
-	expanded := m.listVP.Height()
-	res, _ = m.Update(flashMsg("copied u1"))
-	m = res.(model)
-	if lines := strings.Split(m.View().Content, "\n"); len(lines) != m.height {
-		t.Errorf("with a flash the frame is %d lines, want %d", len(lines), m.height)
+	press := func(keys ...tea.KeyPressMsg) {
+		for _, k := range keys {
+			res, _ := m.Update(k)
+			m = res.(model)
+		}
 	}
-	if m.listVP.Height() <= expanded {
-		t.Errorf("the list must grow while the flash folds the help: %d then %d", expanded, m.listVP.Height())
+	closed := strings.Split(ansi.Strip(m.render()), "\n")
+	if foot := closed[len(closed)-2]; !strings.Contains(foot, "f1 help") {
+		t.Fatalf("the help line offers the panel: %q", foot)
 	}
-	res, _ = m.Update(clearFlashMsg(m.flash.seq))
-	if got := res.(model).listVP.Height(); got != expanded {
-		t.Errorf("after the flash the list is %d lines, want %d again", got, expanded)
+	list := m.listVP.Height()
+	press(tea.KeyPressMsg{Code: tea.KeyF1})
+	open := strings.Split(ansi.Strip(m.render()), "\n")
+	if len(open) != len(closed) || m.listVP.Height() != list {
+		t.Fatalf("the panel changed the frame: %d lines (list %d), want %d (list %d)", len(open), m.listVP.Height(), len(closed), list)
+	}
+	all := strings.Join(open, "\n")
+	if strings.Contains(all, "Options") {
+		t.Errorf("no options here, so no such section:\n%s", all)
+	}
+	for _, want := range []string{"╭─ help ", "Keys", "esc close", "copy the URL", "scroll the description", "resize the list"} {
+		if !strings.Contains(all, want) {
+			t.Errorf("the panel lacks %q:\n%s", want, all)
+		}
+	}
+	for i, l := range open {
+		if ansi.StringWidth(l) != m.width {
+			t.Errorf("line %d is %d cells wide, want %d", i, ansi.StringWidth(l), m.width)
+		}
+	}
+	cursor := m.cursor
+	press(tea.KeyPressMsg{Code: 'z', Text: "z"}, tea.KeyPressMsg{Code: tea.KeyDown}, tea.KeyPressMsg{Code: tea.KeyEnter})
+	if m.ti.Value() != "" || m.cursor != cursor || !m.panel.open {
+		t.Errorf("the panel should take every key: filter %q, cursor %d -> %d, open %v", m.ti.Value(), cursor, m.cursor, m.panel.open)
+	}
+	res, cmd := m.Update(tea.KeyPressMsg{Code: tea.KeyEscape})
+	m = res.(model)
+	if m.panel.open || cmd != nil {
+		t.Errorf("esc closes the panel and nothing else: open=%v cmd=%v", m.panel.open, cmd)
+	}
+	press(tea.KeyPressMsg{Code: 'x', Text: "x"}, tea.KeyPressMsg{Code: '?', Text: "?"})
+	if m.ti.Value() != "x?" || m.panel.open {
+		t.Errorf("? is text: filter %q, panel open %v", m.ti.Value(), m.panel.open)
+	}
+	press(tea.KeyPressMsg{Code: tea.KeyF1})
+	if !m.panel.open {
+		t.Errorf("f1 opens the panel whatever the filter says")
 	}
 }
