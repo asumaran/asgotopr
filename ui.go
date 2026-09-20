@@ -20,7 +20,6 @@ import (
 	"charm.land/bubbles/v2/viewport"
 	tea "charm.land/bubbletea/v2"
 	"charm.land/lipgloss/v2"
-	"github.com/charmbracelet/x/ansi"
 )
 
 func herdrBin() string {
@@ -35,10 +34,6 @@ func homeRel(p string) string {
 		return "~" + strings.TrimPrefix(p, h)
 	}
 	return p
-}
-
-func truncate(s string, width int) string {
-	return ansi.Truncate(s, width, "…")
 }
 
 // ---- styles ----
@@ -367,19 +362,6 @@ func (m *model) updatePreview() tea.Cmd {
 	return renderPreviewCmd(r.e.pr, m.prevW(), m.previewStyle)
 }
 
-// setPreviewStyle switches the glamour style once the terminal background is
-// known. Cached renders carry the old palette, so they are dropped and the
-// current preview is rendered again.
-func (m *model) setPreviewStyle(style string) tea.Cmd {
-	if style == m.previewStyle {
-		return nil
-	}
-	m.previewStyle = style
-	m.renders = map[string]string{}
-	m.prevKey = ""
-	return m.updatePreview()
-}
-
 // ---- refresh plumbing ----
 
 // finishRefresh swaps in a freshly fetched PR list. updateCache is false when
@@ -457,11 +439,7 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		return m, m.updatePreview()
 
 	case tea.BackgroundColorMsg:
-		style := "dark"
-		if !msg.IsDark() {
-			style = "light"
-		}
-		return m, m.setPreviewStyle(style)
+		return m, m.setPreviewStyle(glamourStyle(msg))
 
 	case searchMsg:
 		m.pendingSearches--
@@ -641,11 +619,8 @@ func (m model) handleMouse(msg tea.MouseWheelMsg) (tea.Model, tea.Cmd) {
 		return m, nil
 	}
 	if m.overList(msg.X, msg.Y) {
-		switch msg.Button {
-		case tea.MouseWheelUp:
-			return m.handleKey(tea.KeyPressMsg{Code: tea.KeyUp})
-		case tea.MouseWheelDown:
-			return m.handleKey(tea.KeyPressMsg{Code: tea.KeyDown})
+		if k, ok := wheelKey(msg); ok {
+			return m.handleKey(k)
 		}
 		return m, nil
 	}
@@ -655,7 +630,7 @@ func (m model) handleMouse(msg tea.MouseWheelMsg) (tea.Model, tea.Cmd) {
 
 // overList reports whether a screen cell is inside the list.
 func (m *model) overList(x, y int) bool {
-	return m.mode == modeFilter && x >= 1 && x <= m.listW() && y >= listY(false) && y < listY(false)+m.bodyH()
+	return m.mode == modeFilter && inList(x, y, listY(false), m.listW(), m.bodyH())
 }
 
 // handleClick moves the selection to the PR row under a left click on the
@@ -666,8 +641,8 @@ func (m model) handleClick(msg tea.MouseClickMsg) (tea.Model, tea.Cmd) {
 	if msg.Button != tea.MouseLeft || !m.overList(msg.X, msg.Y) {
 		return m, nil
 	}
-	i := msg.Y - listY(false) + m.listVP.YOffset()
-	if i < 0 || i >= len(m.rows) || m.rows[i].kind != "pr" || i == m.cursor {
+	i, ok := rowUnder(msg.Y, listY(false), m.listVP.YOffset(), len(m.rows))
+	if !ok || m.rows[i].kind != "pr" || i == m.cursor {
 		return m, nil
 	}
 	m.cursor = i
