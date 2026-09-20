@@ -190,7 +190,12 @@ Keybinding (user config): `prefix+d` / `ctrl+alt+d` → `plugin_action`
   `make new tab` in Chrome's front window when Chrome is running with a
   window, because `open <url>` lets Chrome pick its `profile.last_used`,
   which is not the last focused window/profile. Falls back to `open`;
-  `ASGOTOPR_OPENER` replaces the whole thing.
+  `ASGOTOPR_OPENER` replaces the whole thing. `openURL` lives in `openurl.go`,
+  the same file in every tool that opens the browser.
+- **Copy**: `ctrl+y` copies the selected PR's URL (`copyCmd` in the shared
+  `clipboard.go`) and the help line confirms it for a moment (`flash.go`,
+  shown by `footMsg` before an error). `ASGOTOPR_CLIPBOARD` replaces the
+  clipboard command (the tests point it at a stub).
 - **Errors surface inside the TUI** (modeError); the herdr action runs only
   after quit, because quitting closes the popup and post-exit output is lost.
 - **Never query the terminal behind bubbletea's back**: only the program

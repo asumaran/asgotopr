@@ -49,10 +49,15 @@ opener = os.path.join(bind, "opener")
 with open(opener, "w") as f:
     f.write('#!/bin/sh\necho "$@" >> "%s"\n' % opener_log)
 os.chmod(opener, 0o755)
+clip_log = os.path.join(SANDBOX, "clipboard.log")
+clipboard = os.path.join(bind, "clipboard")
+with open(clipboard, "w") as f:
+    f.write('#!/bin/sh\ncat > "%s"\n' % clip_log)
+os.chmod(clipboard, 0o755)
 
 # ---------- spawn ----------
 env = dict(os.environ, TERM="xterm-256color", COLORTERM="truecolor", ASGOTOPR_ROOT=root,
-           HERDR_PLUGIN_STATE_DIR=state, HERDR_BIN_PATH=fake, ASGOTOPR_OPENER=opener)
+           HERDR_PLUGIN_STATE_DIR=state, HERDR_BIN_PATH=fake, ASGOTOPR_OPENER=opener, ASGOTOPR_CLIPBOARD=clipboard)
 env.pop("HERDR_ENV", None)
 master, slave = pty.openpty()
 fcntl.ioctl(slave, termios.TIOCSWINSZ, struct.pack("HHHH", ROWS, COLS, 0, 0))
@@ -231,6 +236,12 @@ for _ in range(50):
 pump(0.4)
 f9 = frame()
 sel = [l for l in left(f9) if "\u258c" in l]
+# ctrl+y copies the selected PR's URL and says so on the help line; the popup stays up
+send(b"\x19"); pump(0.6)
+fy = frame()
+copied = open(clip_log).read() if os.path.exists(clip_log) else ""
+check(sel and copied.endswith("/pull/" + sel[0].split()[1].lstrip("#")), "ctrl+y copied the selected PR URL: %r" % copied)
+check("copied " in fy[-2] and proc.poll() is None, "ctrl+y confirms on the help line and keeps the popup open: %r" % fy[-2])
 send(b"\x0f"); pump(1.0)
 try:
     code = proc.wait(timeout=3)

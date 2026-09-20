@@ -224,10 +224,3 @@ func openedLine(pr prItem) string {
 	parts = append(parts, "updated "+relTime(pr.UpdatedAt))
 	return strings.Join(parts, stDim.Render(" · "))
 }
-
-func plural(n int, noun string) string {
-	if n == 1 {
-		return "1 " + noun
-	}
-	return strconv.Itoa(n) + " " + noun + "s"
-}

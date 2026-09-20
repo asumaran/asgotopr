@@ -8,7 +8,6 @@ package main
 // indexes; branch/meta hits have nothing visible to highlight.
 
 import (
-	"regexp"
 	"sort"
 	"strconv"
 	"strings"
@@ -27,19 +26,6 @@ type row struct {
 	match bool
 	score int
 	idx   []int // matched rune positions in the title, for highlighting
-}
-
-// ticketRe matches a Jira-style ticket key: a project key of 2+ letters, a
-// dash and digits (FED-2030, plat-1193).
-var ticketRe = regexp.MustCompile(`(?i)\b([a-z][a-z]+-[0-9]+)\b`)
-
-func ticketFrom(sources ...string) string {
-	for _, s := range sources {
-		if m := ticketRe.FindString(s); m != "" {
-			return strings.ToUpper(m)
-		}
-	}
-	return ""
 }
 
 // buildEntries filters PRs to those with a local clone and orders them

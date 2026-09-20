@@ -2,6 +2,7 @@ package main
 
 import (
 	"os"
+	"path/filepath"
 	"strings"
 	"testing"
 	"time"
@@ -361,5 +362,60 @@ func TestResizeList(t *testing.T) {
 	}
 	if m.split != splitMax {
 		t.Errorf("split should clamp at %d, got %d", splitMax, m.split)
+	}
+}
+
+// TestCopyKeyCopiesTheURL covers ctrl+y: the PR under the cursor goes to the
+// clipboard, the help line confirms it for a moment, and the filter is left
+// alone.
+func TestCopyKeyCopiesTheURL(t *testing.T) {
+	log := filepath.Join(t.TempDir(), "clip")
+	stub := filepath.Join(t.TempDir(), "clipboard")
+	if err := os.WriteFile(stub, []byte("#!/bin/sh\ncat > "+log+"\n"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	t.Setenv("ASGOTOPR_CLIPBOARD", stub)
+	m := testModel(t)
+	res, cmd := m.Update(tea.KeyPressMsg{Code: 'y', Mod: tea.ModCtrl})
+	if cmd == nil {
+		t.Fatal("ctrl+y returned no command")
+	}
+	res, _ = res.(model).Update(cmd())
+	m = res.(model)
+	if got, _ := os.ReadFile(log); string(got) != "u1" {
+		t.Errorf("the clipboard got %q, want the URL of the PR under the cursor", got)
+	}
+	plain := strings.Split(ansi.Strip(m.View().Content), "\n")
+	if help := plain[len(plain)-2]; !strings.Contains(help, "copied u1") {
+		t.Errorf("help line = %q, want the confirmation", help)
+	}
+	if m.ti.Value() != "" {
+		t.Errorf("ctrl+y leaked into the filter: %q", m.ti.Value())
+	}
+	res, _ = m.Update(clearFlashMsg(m.flash.seq))
+	plain = strings.Split(ansi.Strip(res.(model).View().Content), "\n")
+	if help := plain[len(plain)-2]; !strings.Contains(help, "type filter") {
+		t.Errorf("after the timer the help is back: %q", help)
+	}
+}
+
+// TestFlashKeepsTheFrameWhileTheHelpIsExpanded: a flash folds the expanded
+// help for a moment, and the sections must take the lines it gives back.
+func TestFlashKeepsTheFrameWhileTheHelpIsExpanded(t *testing.T) {
+	m := testModel(t)
+	res, _ := m.Update(tea.KeyPressMsg{Code: tea.KeyF1})
+	m = res.(model)
+	expanded := m.listVP.Height()
+	res, _ = m.Update(flashMsg("copied u1"))
+	m = res.(model)
+	if lines := strings.Split(m.View().Content, "\n"); len(lines) != m.height {
+		t.Errorf("with a flash the frame is %d lines, want %d", len(lines), m.height)
+	}
+	if m.listVP.Height() <= expanded {
+		t.Errorf("the list must grow while the flash folds the help: %d then %d", expanded, m.listVP.Height())
+	}
+	res, _ = m.Update(clearFlashMsg(m.flash.seq))
+	if got := res.(model).listVP.Height(); got != expanded {
+		t.Errorf("after the flash the list is %d lines, want %d again", got, expanded)
 	}
 }

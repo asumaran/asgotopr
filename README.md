@@ -49,7 +49,7 @@ top or the bottom of the list, `shift+↓`/`shift+↑` scroll the description
 preview, `?` (while the filter is empty) or `f1` expands the help line into
 every key, `shift+←`/`shift+→` resize the list (the split is remembered; the
 list takes a quarter of the width by default), `enter` opens the selected PR's checkout, `ctrl+o` opens the PR in
-the browser instead, `esc` closes (so does `q` while the filter is empty). The mouse
+the browser instead, `ctrl+y` copies its URL (the help line says so for a moment), `esc` closes (so does `q` while the filter is empty). The mouse
 wheel moves the selection over the list and scrolls the description anywhere
 else; clicking a PR selects it (enter still opens it).
 

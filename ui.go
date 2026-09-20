@@ -7,9 +7,7 @@ package main
 // the TUI exits (quitting is what closes the popup).
 
 import (
-	"os"
 	"os/exec"
-	"runtime"
 	"strconv"
 	"strings"
 	"time"
@@ -54,6 +52,7 @@ type keyMap struct {
 	Shrink   key.Binding
 	Grow     key.Binding
 	Browse   key.Binding
+	Copy     key.Binding
 	Filter   key.Binding
 	Help     key.Binding
 }
@@ -72,7 +71,7 @@ func (k keyMap) FullHelp() [][]key.Binding {
 	return [][]key.Binding{
 		{k.Filter, k.PrevUp, k.Shrink},
 		{k.Nav.Up, k.Nav.PageUp, k.Nav.Top},
-		{k.Select, k.Browse},
+		{k.Select, k.Browse, k.Copy},
 		{k.Help, k.Cancel},
 	}
 }
@@ -87,6 +86,7 @@ func defaultKeys() keyMap {
 		Shrink:   key.NewBinding(key.WithKeys("shift+left"), key.WithHelp("⇧←/⇧→", "resize the list")),
 		Grow:     key.NewBinding(key.WithKeys("shift+right")),
 		Browse:   key.NewBinding(key.WithKeys("ctrl+o"), key.WithHelp("^o", "browser")),
+		Copy:     key.NewBinding(key.WithKeys("ctrl+y"), key.WithHelp("^y", "copy the URL")),
 		// Help-only entry: a binding without keys is disabled and the help
 		// bubble would skip it. Nothing ever matches against it.
 		Filter: key.NewBinding(key.WithKeys("type"), key.WithHelp("type", "filter")),
@@ -121,6 +121,7 @@ type model struct {
 	mergedPending   []prItem // fresh list waiting for its bodiesMsg
 	refreshing      bool
 	netErr          string
+	flash           flash // confirmation on the help line (flash.go)
 
 	// ui
 	rows    []row
@@ -186,6 +187,17 @@ const minBodyH = 4
 
 func (m *model) toggleHelp() tea.Cmd {
 	m.help.ShowAll = !m.help.ShowAll
+	m.resize()
+	m.renderList()
+	return m.updatePreview()
+}
+
+// reflow lays the sections out again after the help line changed height: a
+// flash folds an expanded help for as long as it shows.
+func (m *model) reflow() tea.Cmd {
+	if !m.help.ShowAll {
+		return nil
+	}
 	m.resize()
 	m.renderList()
 	return m.updatePreview()
@@ -427,6 +439,13 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	case tea.BackgroundColorMsg:
 		return m, m.setPreviewStyle(glamourStyle(msg))
 
+	case flashMsg:
+		return m, tea.Batch(m.flash.set(string(msg)), m.reflow())
+
+	case clearFlashMsg:
+		m.flash.clear(msg)
+		return m, m.reflow()
+
 	case searchMsg:
 		m.pendingSearches--
 		if msg.err != nil {
@@ -559,6 +578,11 @@ func (m model) handleKey(msg tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 			return m, tea.Quit
 		}
 		return m, nil
+	case key.Matches(msg, m.keys.Copy):
+		if r := m.currentRow(); r != nil {
+			return m, copyCmd("asgotopr", "", r.e.pr.URL)
+		}
+		return m, copyCmd("asgotopr", "", "")
 	case m.keys.Nav.matches(msg):
 		m.cursor = m.keys.Nav.move(msg, m.cursor, len(m.rows), m.listVP.Height(),
 			func(i int) bool { return m.rows[i].kind == "pr" })
@@ -723,7 +747,10 @@ func (m model) rightColumn() string {
 // refresh mark lives on the edge over the input.
 // footMsg is what takes the help's place while there is something to say.
 func (m model) footMsg() string {
-	if m.netErr != "" {
+	switch {
+	case m.flash.text != "":
+		return m.flash.view(m.width - 4)
+	case m.netErr != "":
 		return stError.Render(truncate(m.netErr, max(0, m.width-4)))
 	}
 	return ""
@@ -736,39 +763,6 @@ func (m model) footLines() []string {
 	return helpLines(m.help, m.keys, m.width-4, m.footH())
 }
 
-// openURL opens a PR in the browser. ASGOTOPR_OPENER, when set, is used as-is
-// (the pty driver points it at a logging stub). Otherwise, when Google Chrome
-// is running with a window, the tab is created in Chrome's front window so it
-// lands in the profile the user last focused: plain `open` hands the URL to
-// Chrome, which then picks its own "last used" profile bookkeeping, and that
-// routinely disagrees with the window you were just looking at. Anything else
-// falls back to `open`. Outside macOS it is xdg-open.
-func openURL(url string) {
-	if b := os.Getenv("ASGOTOPR_OPENER"); b != "" {
-		_ = exec.Command(b, url).Run()
-		return
-	}
-	if runtime.GOOS != "darwin" {
-		_ = exec.Command("xdg-open", url).Run()
-		return
-	}
-	if openInChromeFrontWindow(url) == nil {
-		return
-	}
-	_ = exec.Command("open", url).Run()
-}
-
-func openInChromeFrontWindow(url string) error {
-	esc := strings.NewReplacer(`\`, `\\`, `"`, `\"`).Replace(url)
-	script := `tell application "Google Chrome"
-	if not running then error "not running"
-	if (count of windows) = 0 then error "no windows"
-	tell front window to make new tab with properties {URL:"` + esc + `"}
-	activate
-end tell`
-	return exec.Command("osascript", "-e", script).Run()
-}
-
 // runAction executes the queued post-quit work: the herdr CLI call and/or
 // the browser open. Both wait for the TUI to exit because quitting is what
 // closes the popup and anything written to the terminal after that is lost.
@@ -777,6 +771,6 @@ func runAction(action []string, browse string) {
 		_ = exec.Command(herdrBin(), action...).Run()
 	}
 	if browse != "" {
-		openURL(browse)
+		openURL("asgotopr", browse)
 	}
 }

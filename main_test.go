@@ -9,43 +9,6 @@ import (
 	tea "charm.land/bubbletea/v2"
 )
 
-func TestGithubSlugFromURL(t *testing.T) {
-	cases := map[string]string{
-		"git@github.com:asumaran/asgotopr.git": "asumaran/asgotopr",
-		"git@github.com:asumaran/asgotopr":     "asumaran/asgotopr",
-		"ssh://git@github.com/owner/repo.git":  "owner/repo",
-		"https://github.com/owner/repo":        "owner/repo",
-		"https://github.com/owner/repo.git":    "owner/repo",
-		"https://github.com/owner/repo/":       "owner/repo",
-		"https://gitlab.com/owner/repo.git":    "",
-		"/Users/asumaran/Developer/asreviewer": "",
-		"git@github.com:owner/group/sub.git":   "",
-		"":                                     "",
-	}
-	for url, want := range cases {
-		if got := githubSlugFromURL(url); got != want {
-			t.Errorf("githubSlugFromURL(%q) = %q, want %q", url, got, want)
-		}
-	}
-}
-
-func TestOriginURL(t *testing.T) {
-	config := `[core]
-	repositoryformatversion = 0
-[remote "upstream"]
-	url = git@github.com:other/upstream.git
-[remote "origin"]
-	url = git@github.com:asumaran/asgotopr.git
-	fetch = +refs/heads/*:refs/remotes/origin/*
-`
-	if got := originURL(config); got != "git@github.com:asumaran/asgotopr.git" {
-		t.Errorf("originURL = %q", got)
-	}
-	if got := originURL("[core]\n\tbare = false\n"); got != "" {
-		t.Errorf("originURL with no origin = %q, want empty", got)
-	}
-}
-
 func TestMergePRsDedupsRoles(t *testing.T) {
 	a := []prItem{
 		{URL: "u1", Number: 1, UpdatedAt: time.Unix(100, 0), Roles: []string{"author"}},
@@ -263,18 +226,6 @@ func TestUpdatedAtTiebreak(t *testing.T) {
 	best := firstPR(rows)
 	if best < 0 || rows[best].e.pr.URL != "new" {
 		t.Fatalf("tiebreak: best = %v, want the newer PR", best)
-	}
-}
-
-func TestTicketFrom(t *testing.T) {
-	if got := ticketFrom("feat/FED-2030-add-metrics"); got != "FED-2030" {
-		t.Errorf("ticketFrom = %q", got)
-	}
-	if got := ticketFrom("no ticket here", "plat-1193 fix"); got != "PLAT-1193" {
-		t.Errorf("ticketFrom fallback = %q", got)
-	}
-	if got := ticketFrom("e2e-tests", "v1-2"); got != "" {
-		t.Errorf("ticketFrom false positive = %q", got)
 	}
 }
 
