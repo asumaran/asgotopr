@@ -1,6 +1,6 @@
 id = "asumaran.asgotopr"
 name = "asgotopr"
-version = "0.11.0"
+version = "0.12.0"
 min_herdr_version = "0.7.5"
 description = "Jump to your open GitHub PRs across local repos and worktrees"
 platforms = ["linux", "macos"]

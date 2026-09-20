@@ -1,3 +1,7 @@
+## v0.12.0 (2026-09-20)
+
+* feat(keys): copy the PR URL with ctrl+y (4f3fbda)
+
 ## v0.11.0 (2026-09-20)
 
 * refactor(state): share one state dir with the shell (fee4bbd)
