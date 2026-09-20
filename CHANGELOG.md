@@ -1,3 +1,7 @@
+## v0.10.0 (2026-09-19)
+
+* feat(ui): move the counter under the list (49db6c2)
+
 ## v0.9.2 (2026-09-19)
 
 * fix: shorten only paths inside the home dir (f028725)
