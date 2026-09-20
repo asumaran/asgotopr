@@ -92,7 +92,7 @@ herdr plugin link "$PWD"   # register the working copy (no build step)
 
 Runtime state (`prcache.json`, `repos.json`) lives in
 `HERDR_PLUGIN_STATE_DIR`; standalone runs fall back to
-`~/.config/herdr/asgotopr-tui/`. `ASGOTOPR_ROOT` overrides the `~/Developer` scan
+`~/.local/state/herdr/plugins/asumaran.asgotopr/`, the directory herdr gives the plugin. `ASGOTOPR_ROOT` overrides the `~/Developer` scan
 root (used by tests).
 
 ## Demo recording
