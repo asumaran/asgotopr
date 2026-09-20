@@ -1,3 +1,7 @@
+## v0.13.0 (2026-09-20)
+
+* feat(ui): open an options and keys panel with f1 (b71626d)
+
 ## v0.12.0 (2026-09-20)
 
 * feat(keys): copy the PR URL with ctrl+y (4f3fbda)
