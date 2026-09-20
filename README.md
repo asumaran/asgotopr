@@ -41,7 +41,7 @@ description = "asgotopr (PR switcher)"
 
 ## Usage
 
-The filter input is focused on open — just type. Search is fuzzy over the PR
+The filter input is focused on open, so just type. A query of several words matches them in any order (`login fix` finds "fix login flow"), and a word starting with `'` must occur as typed instead of fuzzily (`'dex`). Search is fuzzy over the PR
 title, the head branch, the PR number (`1234` finds `#1234`), the Jira ticket
 key in branch/title, and the repo name. `↑/↓` (or `ctrl+p`/`ctrl+n`) move
 between PRs, PgDn/PgUp move a page, `alt+↑`/`alt+↓` (or Home/End) go to the
