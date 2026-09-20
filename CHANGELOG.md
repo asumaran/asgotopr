@@ -1,3 +1,8 @@
+## v0.11.0 (2026-09-20)
+
+* refactor(state): share one state dir with the shell (fee4bbd)
+* feat(search): match query terms in any order (858e757)
+
 ## v0.10.0 (2026-09-19)
 
 * feat(ui): move the counter under the list (49db6c2)
