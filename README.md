@@ -8,8 +8,8 @@ Selecting a PR lands you on its checkout:
 
 - an existing worktree for the PR's branch is opened/focused in the herdr
   sidebar (added when missing);
-- otherwise the main clone switches to the branch — offering to stash first
-  when the tree is dirty — and the repo is selected in the sidebar (added when
+- otherwise the main clone switches to the branch (offering to stash first
+  when the tree is dirty) and the repo is selected in the sidebar (added when
   missing).
 
 ![asgotopr demo: popup over herdr listing open PRs with a preview, fuzzy search, jump to the PR's worktree](docs/demo.gif)
@@ -43,15 +43,22 @@ description = "asgotopr (PR switcher)"
 
 The filter input is focused on open, so just type. A query of several words matches them in any order (`login fix` finds "fix login flow"), and a word starting with `'` must occur as typed instead of fuzzily (`'dex`). Search is fuzzy over the PR
 title, the head branch, the PR number (`1234` finds `#1234`), the Jira ticket
-key in branch/title, and the repo name. `↑/↓` (or `ctrl+p`/`ctrl+n`) move
-between PRs, PgDn/PgUp move a page, `alt+↑`/`alt+↓` (or Home/End) go to the
-top or the bottom of the list, `shift+↓`/`shift+↑` scroll the description
-preview, `f1` opens a panel with
-every key, `shift+←`/`shift+→` resize the list (the split is remembered; the
-list takes a quarter of the width by default), `enter` opens the selected PR's checkout, `ctrl+o` opens the PR in
-the browser instead, `ctrl+y` copies its URL (the help line says so for a moment), `esc` closes (so does `q` while the filter is empty). The mouse
-wheel moves the selection over the list and scrolls the description anywhere
-else; clicking a PR selects it (enter still opens it).
+key in branch/title, and the repo name.
+
+| key | action |
+| --- | --- |
+| `enter` | open the selected PR's checkout |
+| `ctrl+o` | open the PR in the browser instead |
+| `ctrl+y` | copy the PR's URL to the clipboard; the help line confirms it |
+| `↑/↓`, `ctrl+p`/`ctrl+n` | move the cursor |
+| PgDn/PgUp | move the cursor a page |
+| `alt+↑`/`alt+↓`, Home/End | top or bottom of the list |
+| `shift+↓`/`shift+↑`, mouse wheel over the preview | scroll the description |
+| mouse wheel over the list | move the cursor |
+| `f1` | open the panel with every key (`esc` closes it) |
+| `shift+←`/`shift+→` | resize the list; the split is remembered (the list takes a quarter of the width by default) |
+| click | select a row (`enter` still opens it) |
+| `esc`, `q` with an empty filter | close |
 
 With a query the list is a search result: the best match comes first, with
 its group on top, and the cursor starts on it. Rows that match equally well
@@ -66,7 +73,7 @@ never-fetched branches are fetched via `pull/<N>/head` before switching.
 ## Behavior notes
 
 - PR data comes from two GraphQL searches (`author:@me` / `assignee:@me`,
-  open PRs only, first 100 each — no pagination) filtered to repos with a
+  open PRs only, first 100 each, no pagination) filtered to repos with a
   GitHub `origin` cloned directly under `~/Developer`.
 - Everything is cached stale-while-revalidate in the plugin state dir: the
   popup renders instantly from the last snapshot while a background refresh
