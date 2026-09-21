@@ -8,7 +8,7 @@ asdemo record            # from the repo root; writes docs/demo.gif
 asdemo doctor            # check the toolchain first
 ```
 
-- `scenario.sh` — the isolated herdr session (`asgotoprdemo`): the personal
+- `scenario.sh`: the isolated herdr session (`asgotoprdemo`): the personal
   repos and shopnest worktrees in the sidebar, the bottom splits, and two
   things specific to asgotopr. `ASGOTOPR_ROOT` is pointed (through the session
   server's env) at a throwaway directory holding symlinks to personal repos
@@ -20,7 +20,7 @@ asdemo doctor            # check the toolchain first
   the demo root's data. `demo_setup` warms that state with `./asgotopr -dump`
   so the first popup renders instantly. `demo_build` stamps `./asgotopr` with
   the manifest version; `demo_teardown` restores the dev build.
-- `keys.json` — `prefix+d` -> popup -> type `access` -> enter (lands on the
+- `keys.json`: `prefix+d` -> popup -> type `access` -> enter (lands on the
   `fix/SHOP-4-product-card-accessibility` worktree) -> `prefix+d` -> type
   `hasprod` -> enter (`feat/cart-has-product`). Both PRs have worktrees, so
   no checkout switch happens on camera.

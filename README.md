@@ -58,7 +58,7 @@ key in branch/title, and the repo name.
 | `f1` | open the panel with every key (`esc` closes it) |
 | `shift+←`/`shift+→` | resize the list; the split is remembered (the list takes a quarter of the width by default) |
 | click | select a row (`enter` still opens it) |
-| `esc`, `q` with an empty filter | close |
+| `esc`, `ctrl+c`, `q` with an empty filter | quit |
 
 With a query the list is a search result: the best match comes first, with
 its group on top, and the cursor starts on it. Rows that match equally well
@@ -69,6 +69,12 @@ uncommitted changes, asgotopr offers: `[s]` stash & switch (stash message
 `asgotopr: switching to <branch>`, findable later with `git stash list`; there
 is no auto-restore), `[f]` switch anyway, `[esc]` cancel. Fork PRs and
 never-fetched branches are fetched via `pull/<N>/head` before switching.
+In that dialog, and in the one that reports a failed switch, `esc` only steps
+back to the list; `ctrl+c` quits from anywhere.
+
+Pasting into the filter (a terminal paste or `ctrl+v`) filters like typing
+does. A query of spaces only, or a bare `~` or `'`, is not a query yet: the list
+stays as it is and the cursor does not move.
 
 ## Behavior notes
 
@@ -85,7 +91,9 @@ never-fetched branches are fetched via `pull/<N>/head` before switching.
 - Worktree detection uses `git worktree list --porcelain`, so it works for
   repos not yet in the herdr sidebar and does not assume `~/wt` conventions.
 - Missing/unauthenticated `gh`, network failures and rate limits degrade to
-  the cached snapshot with the error on the help line.
+  the cached snapshot. The error takes the help line until the next key, and
+  the edge over the filter keeps a red `refresh failed` mark, so a list that
+  is not fresh says so.
 
 ## Development
 
@@ -93,14 +101,22 @@ never-fetched branches are fetched via `pull/<N>/head` before switching.
 go build -o asgotopr .   # local build (plugin runs ./asgotopr from the repo root)
 ./asgotopr -dump         # print repos, PRs and worktree resolution (no TTY)
 ./asgotopr -dump -query cart   # additionally print filter scores for a query
+./asgotopr -version      # print the embedded version
 go vet ./... && go test ./...
+scripts/pty-check.py ./asgotopr   # end-to-end TUI check on a pty (python3 + pyte)
 herdr plugin link "$PWD"   # register the working copy (no build step)
 ```
 
-Runtime state (`prcache.json`, `repos.json`) lives in
-`HERDR_PLUGIN_STATE_DIR`; standalone runs fall back to
-`~/.local/state/herdr/plugins/asumaran.asgotopr/`, the directory herdr gives the plugin. `ASGOTOPR_ROOT` overrides the `~/Developer` scan
-root (used by tests).
+Runtime state (`prcache.json`, `repos.json`, the divider's `split-columns`)
+lives in `HERDR_PLUGIN_STATE_DIR`; standalone runs use the same directory
+(`~/.local/state/herdr/plugins/asumaran.asgotopr/`).
+
+`ASGOTOPR_ROOT` overrides the `~/Developer` scan root. `ASGOTOPR_OPENER`
+replaces the browser opener `ctrl+o` uses and `ASGOTOPR_CLIPBOARD` the
+clipboard command `ctrl+y` feeds the URL to (`pbcopy` on macOS, else
+`wl-copy`, `xclip` or `xsel`); the tests and the pty check point all three at
+a sandbox. `ASGOTOPR_POPUP_WIDTH` / `ASGOTOPR_POPUP_HEIGHT` override the popup
+size from the manifest.
 
 ## Demo recording
 
