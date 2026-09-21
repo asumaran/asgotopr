@@ -18,7 +18,7 @@ type switchedMsg struct{ err error }
 
 func stashCmd(repo localRepo, branch string) tea.Cmd {
 	return func() tea.Msg {
-		err := runGit(repo.Path, "stash", "push", "-u", "-m", "asgotopr: switching to "+branch)
+		err := gitDo(repo.Path, "stash", "push", "-u", "-m", "asgotopr: switching to "+branch)
 		return stashedMsg{err: err}
 	}
 }
@@ -30,15 +30,15 @@ func performSwitchCmd(e *entry) tea.Cmd {
 	repo, pr := e.repo, e.pr
 	return func() tea.Msg {
 		if !branchExists(repo.Path, pr.HeadRefName) {
-			if err := runGit(repo.Path, "fetch", "origin",
+			if err := gitDo(repo.Path, "fetch", "origin",
 				fmt.Sprintf("pull/%d/head:%s", pr.Number, pr.HeadRefName)); err != nil {
 				return switchedMsg{err: err}
 			}
 		} else if !pr.IsCrossRepo {
 			// Best-effort update of an existing branch; offline still works.
-			_ = runGit(repo.Path, "fetch", "origin", pr.HeadRefName)
+			_ = gitDo(repo.Path, "fetch", "origin", pr.HeadRefName)
 		}
-		return switchedMsg{err: runGit(repo.Path, "switch", pr.HeadRefName)}
+		return switchedMsg{err: gitDo(repo.Path, "switch", pr.HeadRefName)}
 	}
 }
 

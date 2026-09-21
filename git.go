@@ -4,11 +4,11 @@ package main
 // slug) read the filesystem directly with no subprocess, so scanning ~30
 // repos at startup stays in the low milliseconds. Anything that mutates or
 // needs porcelain output (worktree list, status, fetch, switch, stash) shells
-// out to git.
+// out to git through the family's `runGit` (gitrun.go).
 
 import (
+	"context"
 	"fmt"
-	"os/exec"
 	"strings"
 )
 
@@ -56,11 +56,11 @@ func parseWorktreePorcelain(out string) []wtEntry {
 // listWorktrees returns the worktrees of the repo at repoPath (the main
 // checkout is included as the first entry).
 func listWorktrees(repoPath string) ([]wtEntry, error) {
-	out, err := exec.Command("git", "-C", repoPath, "worktree", "list", "--porcelain").Output()
+	out, err := gitIn(repoPath, "worktree", "list", "--porcelain")
 	if err != nil {
-		return nil, gitErr("worktree list", err)
+		return nil, err
 	}
-	return parseWorktreePorcelain(string(out)), nil
+	return parseWorktreePorcelain(out), nil
 }
 
 // worktreeForBranch returns the checkout (main or linked) where branch is
@@ -81,39 +81,27 @@ func worktreeForBranch(repoPath, branch string) *wtEntry {
 // isDirty reports whether the working tree at path has uncommitted changes
 // (staged, unstaged or untracked).
 func isDirty(path string) bool {
-	out, err := exec.Command("git", "-C", path, "status", "--porcelain").Output()
-	if err != nil {
-		return false
-	}
-	return len(strings.TrimSpace(string(out))) > 0
+	out, err := gitIn(path, "status", "--porcelain")
+	return err == nil && strings.TrimSpace(out) != ""
 }
 
 // branchExists reports whether the short branch name exists locally.
 func branchExists(path, branch string) bool {
-	err := exec.Command("git", "-C", path, "show-ref", "--verify", "--quiet", "refs/heads/"+branch).Run()
-	return err == nil
+	return gitDo(path, "show-ref", "--verify", "--quiet", "refs/heads/"+branch) == nil
 }
 
-// gitErr wraps a git subprocess failure, surfacing stderr when available
-// (exec.ExitError only carries it when captured via Output()).
-func gitErr(op string, err error) error {
-	if ee, ok := err.(*exec.ExitError); ok && len(ee.Stderr) > 0 {
-		return fmt.Errorf("git %s: %s", op, strings.TrimSpace(string(ee.Stderr)))
-	}
-	return fmt.Errorf("git %s: %w", op, err)
-}
-
-// runGit runs a git command in dir and returns a descriptive error on
-// failure (stderr included).
-func runGit(dir string, args ...string) error {
-	cmd := exec.Command("git", append([]string{"-C", dir}, args...)...)
-	out, err := cmd.CombinedOutput()
+// gitIn runs git in dir through the family's runGit (gitrun.go), which
+// reports git's own stderr, and names the command in the error.
+func gitIn(dir string, args ...string) (string, error) {
+	out, err := runGit(context.Background(), append([]string{"-C", dir}, args...)...)
 	if err != nil {
-		msg := strings.TrimSpace(string(out))
-		if msg == "" {
-			msg = err.Error()
-		}
-		return fmt.Errorf("git %s: %s", strings.Join(args, " "), msg)
+		return "", fmt.Errorf("git %s: %w", strings.Join(args, " "), err)
 	}
-	return nil
+	return out, nil
+}
+
+// gitDo is gitIn for the commands run for their effect.
+func gitDo(dir string, args ...string) error {
+	_, err := gitIn(dir, args...)
+	return err
 }

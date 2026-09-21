@@ -36,7 +36,9 @@ were lifted from asgoto's single-file layout):
   directories (a curated `ASGOTOPR_ROOT` of links, used by the demo).
 - `git.go` — subprocess-free discovery (`resolveGitDir`, `originURL`,
   `githubSlug*`) + porcelain worktree parsing, `isDirty`, `branchExists`,
-  `runGit`.
+  `gitIn` / `gitDo` (git in a given checkout).
+- `gitrun.go` — `runGit`: git with its own stderr as the error. The same file
+  in every tool of the family that runs git; `gitIn` goes through it.
 - `cache.go` — state dir resolution, `prcache.json` load/save, 60s freshness
   debounce.
 - `filter.go` — entries, corpora, fuzzy hits, `matchBonus` ranking, row
