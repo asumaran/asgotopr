@@ -145,7 +145,8 @@ were lifted from asgoto's single-file layout):
   routing, styles.
 - `preview.go`: glamour rendering as a `tea.Cmd`, per-(URL,width,updatedAt)
   render cache, instant non-glamour header (title, refs, label chips, and
-  aligned Checks/Review/Diff/Opened facts, then a rule).
+  aligned Checks/Review/Diff/Opened facts; `rightColumn` puts one blank line
+  under it).
 - `confirm.go`: stash/switch/error flow: `performSwitchCmd`, `stashCmd`,
   dialog views.
 - `scripts/demo/`: the demo scenario (`scenario.sh` + `keys.json`) that
@@ -160,7 +161,7 @@ were lifted from asgoto's single-file layout):
 ```bash
 go build -o asgotopr .    # plugin runs ./asgotopr from the repo root
 ./asgotopr -dump          # repos + PRs + worktree resolution, no TTY (refreshes when stale)
-./asgotopr -dump -query x # additionally prints filter scores
+./asgotopr -dump -query x # the matches and their scores instead of the list
 go vet ./... && go test ./...
 scripts/pty-check.py ./asgotopr   # end-to-end TUI check on a pty (python3 + pyte)
 herdr plugin link "$PWD"   # link does NOT run [[build]]; go build yourself

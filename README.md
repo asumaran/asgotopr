@@ -100,7 +100,7 @@ stays as it is and the cursor does not move.
 ```bash
 go build -o asgotopr .   # local build (plugin runs ./asgotopr from the repo root)
 ./asgotopr -dump         # print repos, PRs and worktree resolution (no TTY)
-./asgotopr -dump -query cart   # additionally print filter scores for a query
+./asgotopr -dump -query cart   # the matches and their scores instead of the list
 ./asgotopr -version      # print the embedded version
 go vet ./... && go test ./...
 scripts/pty-check.py ./asgotopr   # end-to-end TUI check on a pty (python3 + pyte)
@@ -112,7 +112,7 @@ lives in `HERDR_PLUGIN_STATE_DIR`; standalone runs use the same directory
 (`~/.local/state/herdr/plugins/asumaran.asgotopr/`).
 
 `ASGOTOPR_ROOT` overrides the `~/Developer` scan root. `ASGOTOPR_OPENER`
-replaces the browser opener `ctrl+o` uses and `ASGOTOPR_CLIPBOARD` the
+replaces the browser opener `ctrl+o` uses (a command line; the URL is appended) and `ASGOTOPR_CLIPBOARD` the
 clipboard command `ctrl+y` feeds the URL to (`pbcopy` on macOS, else
 `wl-copy`, `xclip` or `xsel`); the tests and the pty check point all three at
 a sandbox. `ASGOTOPR_POPUP_WIDTH` / `ASGOTOPR_POPUP_HEIGHT` override the popup
