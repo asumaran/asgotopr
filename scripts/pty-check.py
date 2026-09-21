@@ -262,6 +262,26 @@ opened = open(opener_log).read().strip() if os.path.exists(opener_log) else ""
 check(sel and opened.endswith("/pull/" + sel[0].split()[1].lstrip("#")), "ctrl+o opened the selected PR URL: %r" % opened)
 check(not os.path.exists(herdr_log), "no herdr action after ctrl+o")
 
+# ---------- second run: q is text in a query and quits on an empty filter ----------
+master, slave = pty.openpty()
+fcntl.ioctl(slave, termios.TIOCSWINSZ, struct.pack("HHHH", ROWS, COLS, 0, 0))
+proc = subprocess.Popen([BIN], stdin=slave, stdout=slave, stderr=slave, env=env, close_fds=True, cwd=SANDBOX)
+os.close(slave)
+screen = pyte.Screen(COLS, ROWS); stream = pyte.ByteStream(screen); raw = bytearray(); answered = 0
+for _ in range(50):
+    pump(0.1)
+    if "asgotopr ❯" in "\n".join(frame()): break
+pump(0.6)
+send(b"xq"); pump(0.6); fq = frame()
+check(proc.poll() is None and promptline(fq).endswith("xq"), "q inside a query is text: %r" % promptline(fq))
+send(b"\x7f\x7f"); pump(0.5)
+send(b"q")
+try:
+    code = proc.wait(timeout=3)
+except subprocess.TimeoutExpired:
+    proc.kill(); code = "timeout"
+check(code == 0 and not os.path.exists(herdr_log), "q quits with an empty filter and touches nothing (got %r)" % code)
+
 print("== %d failure(s) ==" % len(failures))
 shutil.rmtree(SANDBOX, ignore_errors=True)
 sys.exit(1 if failures else 0)

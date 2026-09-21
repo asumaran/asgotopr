@@ -73,7 +73,9 @@ were lifted from asgoto's single-file layout):
   `overlay`). The same file in every tool of the family.
 - `listnav.go` — `listNav`: the keys that move the cursor through a list and
   where each one takes it, group headers skipped. `scrollTo` keeps the
-  cursor in view, with the header of its group when there is one. The same file in every tool
+  cursor in view, with the header of its group when there is one. `emptyList`
+  is what a list says instead of rows: the error, `No matches`, or the
+  tool's own reason. The same file in every tool
   of the family.
 - `highlight.go` — `highlight`/`highlightFrom`, `matchOver`, `onSel`,
   `selPad` and the `stSel`/`stMatch` styles: how a match and the selected row
@@ -230,7 +232,7 @@ Keybinding (user config): `prefix+d` / `ctrl+alt+d` → `plugin_action`
   confirm/busy/error dialogs). v2's input parser reassembles SGR reports split
   across reads, so fast wheel bursts never leak into the filter (v1 needed a
   workaround for that).
-- **Alt screen** is also declared per frame (`tea.View.AltScreen`); there is
+- **Alt screen and mouse mode** are declared per frame in `View()`; there is
   no `tea.WithAltScreen` program option in v2.
 - Same-origin twin clones: PR listed once under `primaryClone` (dir name ==
   remote repo name, else lexicographic); no per-clone duplicate rows.
