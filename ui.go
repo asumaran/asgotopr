@@ -291,21 +291,13 @@ func (m *model) rowLine(r row, selected bool, numW, width int) string {
 }
 
 func (m *model) ensureVisible() {
-	h := m.listVP.Height()
-	if h <= 0 || m.cursor < 0 {
-		return
-	}
-	// Scrolling up onto the first PR of a group also reveals its header, so
-	// the repo name never sits hidden one line above the selection.
+	// Scrolling up onto the first row of a group also reveals its header, so
+	// the group's name never sits hidden one line above the selection.
 	top := m.cursor
-	if top > 0 && m.rows[top-1].kind == "header" {
+	if top > 0 && top < len(m.rows) && m.rows[top-1].kind == "header" {
 		top--
 	}
-	if top < m.listVP.YOffset() {
-		m.listVP.SetYOffset(top)
-	} else if m.cursor >= m.listVP.YOffset()+h {
-		m.listVP.SetYOffset(m.cursor - h + 1)
-	}
+	m.listVP.SetYOffset(scrollTo(m.listVP.YOffset(), m.listVP.Height(), len(m.rows), m.cursor, top))
 }
 
 // ---- preview ----
