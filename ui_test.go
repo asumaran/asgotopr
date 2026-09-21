@@ -470,3 +470,96 @@ func TestEmptyListSaysWhy(t *testing.T) {
 		t.Errorf("the list should say there are no matches: %q", list)
 	}
 }
+
+// TestPasteFilters: a paste changes the query without a key press, and the
+// list must follow it (toInput). A key that leaves the query alone must not
+// move the cursor off the row it is on.
+func TestPasteFilters(t *testing.T) {
+	m := testModel(t)
+	res, _ := m.Update(tea.PasteMsg{Content: "zzzzqq"})
+	m = res.(model)
+	if m.ti.Value() != "zzzzqq" || len(m.rows) != 0 {
+		t.Fatalf("a paste should filter: query %q, %d rows", m.ti.Value(), len(m.rows))
+	}
+	for range "zzzzqq" {
+		res, _ = m.Update(tea.KeyPressMsg{Code: tea.KeyBackspace})
+		m = res.(model)
+	}
+	if len(m.rows) < 2 {
+		t.Skipf("the fixture lists %d rows", len(m.rows))
+	}
+	res, _ = m.Update(tea.KeyPressMsg{Code: 'a', Text: "a"})
+	m = res.(model)
+	if len(m.rows) < 2 {
+		t.Skipf("the query leaves %d rows", len(m.rows))
+	}
+	res, _ = m.Update(tea.KeyPressMsg{Code: tea.KeyDown})
+	m = res.(model)
+	at := m.cursor
+	res, _ = m.Update(tea.KeyPressMsg{Code: tea.KeyLeft})
+	m = res.(model)
+	if m.cursor != at {
+		t.Errorf("a key that does not edit the query moved the cursor: %d -> %d", at, m.cursor)
+	}
+	m.panel.open = true
+	res, _ = m.Update(tea.PasteMsg{Content: "xx"})
+	if got := res.(model).ti.Value(); got != "a" {
+		t.Errorf("a paste under the panel should be dropped, the query is %q", got)
+	}
+}
+
+// TestCtrlCQuitsFromEveryMode: ctrl+c closes the popup from the confirmation
+// and the error too, as in every tool of the family; esc only steps back.
+func TestCtrlCQuitsFromEveryMode(t *testing.T) {
+	for _, mode := range []uiMode{modeFilter, modeConfirmStash, modeError} {
+		m := testModel(t)
+		m.mode = mode
+		_, cmd := m.Update(tea.KeyPressMsg{Code: 'c', Mod: tea.ModCtrl})
+		if cmd == nil {
+			t.Errorf("mode %d: ctrl+c returned no command", mode)
+			continue
+		}
+		if _, ok := cmd().(tea.QuitMsg); !ok {
+			t.Errorf("mode %d: ctrl+c should quit", mode)
+		}
+	}
+	m := testModel(t)
+	m.mode = modeError
+	res, cmd := m.Update(tea.KeyPressMsg{Code: tea.KeyEscape})
+	if res.(model).mode != modeFilter || cmd != nil {
+		t.Errorf("esc steps back to the list without quitting")
+	}
+}
+
+// TestNetworkErrorGivesTheHelpLineBack: a failed refresh takes the help line
+// like a notice, until the next key; the edge over the input keeps saying the
+// list is the cached one.
+func TestNetworkErrorGivesTheHelpLineBack(t *testing.T) {
+	m := testModel(t)
+	m.netErr, m.stale = "gh: could not resolve host", true
+	plain := strings.Split(ansi.Strip(m.render()), "\n")
+	if !strings.Contains(plain[len(plain)-2], "could not resolve host") || !strings.Contains(plain[0], "refresh failed") {
+		t.Fatalf("the error should take the help line and mark the edge:\n%s\n%s", plain[0], plain[len(plain)-2])
+	}
+	res, _ := m.Update(tea.KeyPressMsg{Code: tea.KeyDown})
+	plain = strings.Split(ansi.Strip(res.(model).render()), "\n")
+	if !strings.Contains(plain[len(plain)-2], "type filter") || !strings.Contains(plain[0], "refresh failed") {
+		t.Errorf("the next key gives the help line back, the mark stays:\n%s\n%s", plain[0], plain[len(plain)-2])
+	}
+}
+
+// TestSpaceIsNotAQuery: a query without terms (spaces, a bare ~) searches for
+// nothing, so it neither ranks the list nor moves the cursor (hasTerms).
+func TestSpaceIsNotAQuery(t *testing.T) {
+	m := testModel(t)
+	res, _ := m.Update(tea.KeyPressMsg{Code: tea.KeyDown})
+	m = res.(model)
+	at, rows := m.cursor, len(m.rows)
+	for _, k := range []string{" ", "~"} {
+		res, _ = m.Update(tea.KeyPressMsg{Code: []rune(k)[0], Text: k})
+		m = res.(model)
+		if m.cursor != at || len(m.rows) != rows {
+			t.Errorf("after %q: cursor %d -> %d, rows %d -> %d", k, at, m.cursor, rows, len(m.rows))
+		}
+	}
+}

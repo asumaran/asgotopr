@@ -91,7 +91,7 @@ func findHits(q string, titles, branches, metas []string) map[int]hit {
 // sink slightly.
 func matchBonus(e *entry, h hit, q string) int {
 	bonus := 0
-	if q == strconv.Itoa(e.pr.Number) || q == "#"+strconv.Itoa(e.pr.Number) {
+	if n := strings.TrimSpace(q); n == strconv.Itoa(e.pr.Number) || n == "#"+strconv.Itoa(e.pr.Number) {
 		bonus += 30
 	}
 	tail := e.pr.RepoSlug[strings.Index(e.pr.RepoSlug, "/")+1:]
@@ -111,7 +111,7 @@ func matchBonus(e *entry, h hit, q string) int {
 // When filtering, only matching PRs (and their headers) survive and they are
 // ranked: best match first, the repo that holds it on top.
 func buildRows(entries []*entry, q string, titles, branches, metas []string) []row {
-	filtering := q != ""
+	filtering := hasTerms(q)
 	var hits map[int]hit
 	if filtering {
 		hits = findHits(q, titles, branches, metas)

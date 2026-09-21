@@ -46,7 +46,7 @@ var (
 type keyMap struct {
 	Nav      listNav
 	Select   key.Binding
-	Cancel   key.Binding
+	Quit     key.Binding
 	PrevUp   key.Binding
 	PrevDown key.Binding
 	Shrink   key.Binding
@@ -62,7 +62,7 @@ type keyMap struct {
 // line stays short enough for a narrow popup (a cut line loses the quit keys
 // first).
 func (k keyMap) ShortHelp() []key.Binding {
-	return []key.Binding{k.Filter, k.Select, k.Browse, k.Help, k.Cancel}
+	return []key.Binding{k.Filter, k.Select, k.Browse, k.Help, k.Quit}
 }
 
 // FullHelp is the panel's list of keys, one column per group: the
@@ -72,7 +72,7 @@ func (k keyMap) FullHelp() [][]key.Binding {
 		{k.Filter, k.PrevUp, k.Shrink},
 		{k.Nav.Up, k.Nav.PageUp, k.Nav.Top},
 		{k.Select, k.Browse, k.Copy},
-		{k.Help, k.Cancel},
+		{k.Help, k.Quit},
 	}
 }
 
@@ -80,7 +80,7 @@ func defaultKeys() keyMap {
 	return keyMap{
 		Nav:      defaultListNav(),
 		Select:   key.NewBinding(key.WithKeys("enter"), key.WithHelp("enter", "open")),
-		Cancel:   key.NewBinding(key.WithKeys("esc", "ctrl+c"), key.WithHelp("esc/q", "quit")),
+		Quit:     key.NewBinding(key.WithKeys("esc"), key.WithHelp("esc/q", "quit")),
 		PrevUp:   key.NewBinding(key.WithKeys("shift+up"), key.WithHelp("⇧↑/⇧↓", "scroll the description")),
 		PrevDown: key.NewBinding(key.WithKeys("shift+down")),
 		Shrink:   key.NewBinding(key.WithKeys("shift+left"), key.WithHelp("⇧←/⇧→", "resize the list")),
@@ -121,6 +121,7 @@ type model struct {
 	mergedPending   []prItem // fresh list waiting for its bodiesMsg
 	refreshing      bool
 	netErr          string
+	stale           bool  // the last refresh failed: the list is the cached one (see status)
 	flash           flash // confirmation on the help line (flash.go)
 	panel           panel // options and keys, over the frame while it is open (panel.go)
 
@@ -186,8 +187,7 @@ func (m *model) resize() {
 
 // resizeList moves the divider between the list and the preview by one step.
 func (m *model) resizeList(grow bool) tea.Cmd {
-	m.split = stepSplit(m.split, grow)
-	saveSplit(stateDir(), m.split)
+	m.split = moveSplit(stateDir(), m.split, grow)
 	m.resize()
 	m.renderList()
 	return m.updatePreview()
@@ -217,7 +217,7 @@ func (m *model) setEntries(prs []prItem) {
 func (m *model) applyFilter() {
 	q := strings.ToLower(m.ti.Value())
 	m.rows = buildRows(m.entries, q, m.titles, m.branchC, m.metas)
-	if q != "" {
+	if hasTerms(q) {
 		m.cursor = firstPR(m.rows) // ranked: the best match is the first row
 		return
 	}
@@ -291,12 +291,8 @@ func (m *model) rowLine(r row, selected bool, numW, width int) string {
 }
 
 func (m *model) ensureVisible() {
-	// Scrolling up onto the first row of a group also reveals its header, so
-	// the group's name never sits hidden one line above the selection.
-	top := m.cursor
-	if top > 0 && top < len(m.rows) && m.rows[top-1].kind == "header" {
-		top--
-	}
+	// Scrolling up onto the first row of a group also reveals its header.
+	top := withHeader(m.cursor, len(m.rows), func(i int) bool { return m.rows[i].kind == "header" })
 	m.listVP.SetYOffset(scrollTo(m.listVP.YOffset(), m.listVP.Height(), len(m.rows), m.cursor, top))
 }
 
@@ -386,9 +382,8 @@ func (m model) Init() tea.Cmd {
 	if m.refreshing {
 		cmds = append(cmds, fetchSearchCmd("author"), fetchSearchCmd("assignee"))
 	}
-	if c := m.updatePreview(); c != nil {
-		cmds = append(cmds, c)
-	}
+	// No preview yet: the size is not known, and a render at a made-up width is
+	// one nobody sees. The first tea.WindowSizeMsg starts it, as in asgitlog.
 	return tea.Batch(cmds...)
 }
 
@@ -425,6 +420,7 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		if m.searchErr != "" { // keep the cached view on any failure
 			m.refreshing = false
 			m.netErr = m.searchErr
+			m.stale = true
 			m.searchErr = ""
 			return m, nil
 		}
@@ -440,6 +436,7 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		m.mergedPending = nil
 		if msg.err != nil {
 			m.netErr = msg.err.Error()
+			m.stale = true
 			return m, m.finishRefresh(merged, false)
 		}
 		return m, m.finishRefresh(applyBodies(merged, msg.bodies), true)
@@ -490,14 +487,22 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		}
 		return m.handleClick(msg)
 
+	case tea.PasteMsg:
+		if m.panel.open || m.mode != modeFilter {
+			return m, nil // nothing is typed under the panel
+		}
+		return m.toInput(msg)
+
 	default:
-		var cmd tea.Cmd
-		m.ti, cmd = m.ti.Update(msg)
-		return m, cmd
+		// Whatever else the input takes (its own paste, the cursor's blink).
+		return m.toInput(msg)
 	}
 }
 
 func (m model) handleKey(msg tea.KeyPressMsg) (tea.Model, tea.Cmd) {
+	if msg.String() == "ctrl+c" {
+		return m, tea.Quit // from any state, as in every tool of the family; esc only steps back
+	}
 	switch m.mode {
 	case modeConfirmStash:
 		switch msg.String() {
@@ -507,7 +512,7 @@ func (m model) handleKey(msg tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 			return m, stashCmd(m.pending.repo, m.pending.pr.HeadRefName)
 		case "f":
 			return m, m.startSwitch()
-		case "esc", "ctrl+c":
+		case "esc":
 			m.mode = modeFilter
 			m.pending = nil
 		}
@@ -515,7 +520,7 @@ func (m model) handleKey(msg tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 
 	case modeError:
 		switch msg.String() {
-		case "esc", "enter", "ctrl+c":
+		case "esc", "enter":
 			m.mode = modeFilter
 			m.pending = nil
 			m.errMsg = ""
@@ -530,6 +535,7 @@ func (m model) handleKey(msg tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 	}
 
 	// modeFilter
+	m.netErr = "" // like a notice: the next key gives the help line back (status keeps the mark)
 	switch {
 	case msg.String() == "ctrl+c":
 		return m, tea.Quit
@@ -543,7 +549,7 @@ func (m model) handleKey(msg tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 	case msg.String() == "q" && m.ti.Value() == "":
 		// q quits only while the filter is empty; otherwise it is text.
 		return m, tea.Quit
-	case key.Matches(msg, m.keys.Cancel):
+	case key.Matches(msg, m.keys.Quit):
 		return m, tea.Quit
 	case key.Matches(msg, m.keys.Select):
 		return m, m.handleSelect()
@@ -575,16 +581,27 @@ func (m model) handleKey(msg tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 		return m, nil
 	}
 
+	return m.toInput(msg)
+}
+
+// toInput hands a message to the filter input and, when that changed the
+// query, filters again: a key, a paste from the terminal (tea.PasteMsg) or the
+// input's own ctrl+v all come through here, so the list never lags behind
+// what the input shows. A message that leaves the query alone moves nothing:
+// the cursor stays on the row it was on.
+func (m model) toInput(msg tea.Msg) (tea.Model, tea.Cmd) {
 	var curURL string
 	if r := m.currentRow(); r != nil {
 		curURL = r.e.pr.URL
 	}
-	var cmd tea.Cmd
-	m.ti, cmd = m.ti.Update(msg)
+	cmd, changed := typeInto(&m.ti, msg)
+	if !changed {
+		return m, cmd
+	}
 	m.applyFilter()
-	if m.ti.Value() == "" {
-		// Clearing the query rebuilt the rows; stay on the same PR instead of
-		// whatever now sits at the old cursor index.
+	if !hasTerms(m.ti.Value()) {
+		// Clearing the query rebuilt the rows; stay on the same PR instead
+		// of whatever now sits at the old cursor index.
 		m.keepCursorOn(curURL)
 	}
 	m.renderList()
@@ -635,18 +652,7 @@ func (m model) handleClick(msg tea.MouseClickMsg) (tea.Model, tea.Cmd) {
 	return m, m.updatePreview()
 }
 
-func (m model) View() tea.View {
-	v := tea.NewView(m.render())
-	v.AltScreen = true
-	// Mouse reports are only wanted while the two columns are scrollable;
-	// the confirm/busy/error dialogs turn them off.
-	if m.mode == modeFilter {
-		v.MouseMode = tea.MouseModeCellMotion
-	} else {
-		v.MouseMode = tea.MouseModeNone
-	}
-	return v
-}
+func (m model) View() tea.View { return popupView(m.render(), m.mode == modeFilter) }
 
 // render stacks the sections in one frame (see frame.go). There is no context
 // line: nothing here needs one.
@@ -659,7 +665,7 @@ func (m model) render() string {
 	}
 	out = append(out, splitMain(m.listLines(), strings.Split(m.rightColumn(), "\n"),
 		m.listW(), m.detailsW(), m.counter(), pos)...)
-	out = append(out, framed(w, m.footLine()), hline(w, "╰", "╯", "", ""))
+	out = append(out, framed(w, footLine(m.flash, m.netErr, m.help, m.keys, w-4)), hline(w, "╰", "╯", "", ""))
 	if m.panel.open && m.mode == modeFilter { // a confirmation or an error shows instead
 		keys := keyLines(m.help, m.keys, w-10)
 		out = overlay(out, panelLines(nil, m.panel.cursor, keys, w-4, len(out)-2), w)
@@ -679,12 +685,7 @@ func (m model) counter() string {
 }
 
 // status is the refresh mark, for the edge over the input.
-func (m model) status() string {
-	if m.refreshing {
-		return stDim.Render("refreshing…")
-	}
-	return ""
-}
+func (m model) status() string { return refreshMark(m.refreshing, m.stale) }
 
 // listLines is the list as exactly bodyH lines of listW cells.
 // leftColumn is the list, or the reason there is nothing to list. A network
@@ -700,17 +701,7 @@ func (m model) leftColumn() string {
 	return emptyList("", m.ti.Value(), reason, m.listW())
 }
 
-func (m model) listLines() []string {
-	lines := strings.Split(m.leftColumn(), "\n")
-	for len(lines) < m.bodyH() {
-		lines = append(lines, "")
-	}
-	lines = lines[:m.bodyH()]
-	for i, l := range lines {
-		lines[i] = fit(l, m.listW())
-	}
-	return lines
-}
+func (m model) listLines() []string { return fitLines(m.leftColumn(), m.bodyH(), m.listW()) }
 
 func (m model) rightColumn() string {
 	w := m.prevW()
@@ -727,26 +718,6 @@ func (m model) rightColumn() string {
 		return "" // the list says why it is empty (leftColumn)
 	}
 	return previewHeader(r.e.pr, w) + "\n" + m.prevVP.View()
-}
-
-// footer is the key help, or the network error while there is one. The
-// refresh mark lives on the edge over the input.
-// footMsg is what takes the help's place while there is something to say.
-func (m model) footMsg() string {
-	switch {
-	case m.flash.text != "":
-		return m.flash.view(m.width - 4)
-	case m.netErr != "":
-		return stError.Render(truncate(m.netErr, max(0, m.width-4)))
-	}
-	return ""
-}
-
-func (m model) footLine() string {
-	if msg := m.footMsg(); msg != "" {
-		return msg
-	}
-	return helpLine(m.help, m.keys, m.width-4)
 }
 
 // runAction executes the queued post-quit work: the herdr CLI call and/or

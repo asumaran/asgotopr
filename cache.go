@@ -3,7 +3,7 @@ package main
 // Disk caches, stale-while-revalidate: everything renders instantly from the
 // last saved snapshot while background fetches refresh it. Cache files live
 // in the herdr-injected per-plugin state dir; standalone runs (e.g. -dump
-// outside herdr) fall back to a fixed path under ~/.config/herdr.
+// outside herdr) use that same directory (statedir.go).
 
 import (
 	"encoding/json"
