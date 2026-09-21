@@ -36,16 +36,15 @@ func renderPreviewCmd(pr prItem, width int, style string) tea.Cmd {
 			content = body // raw text beats nothing
 		case content == "":
 			content = stDim.Render("(no description)")
-		default:
-			content = "\n" + content // a blank line under the header
 		}
 		return previewMsg{key: key, style: style, content: content}
 	}
 }
 
 // previewHeader is the instant (non-glamour) block above the rendered body:
-// title, refs, label chips, then aligned facts (checks, review, diff, dates)
-// and a rule. Its height varies per PR; syncPreviewHeight fits the body
+// title, refs, label chips, then aligned facts (checks, review, diff, dates).
+// rightColumn puts one blank line under it, as in every tool of the family
+// with a header. Its height varies per PR; syncPreviewHeight fits the body
 // viewport under it.
 func previewHeader(pr prItem, width int) string {
 	lines := []string{stTitle.Render(truncate(pr.Title, width))}
@@ -80,7 +79,6 @@ func previewHeader(pr prItem, width int) string {
 		lines = append(lines, fact("Diff", diffLine(pr), width))
 	}
 	lines = append(lines, fact("Opened", openedLine(pr), width))
-	lines = append(lines, stDim.Render(strings.Repeat("─", width)))
 	return strings.Join(lines, "\n")
 }
 

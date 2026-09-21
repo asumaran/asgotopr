@@ -7,6 +7,7 @@ package main
 // the TUI exits (quitting is what closes the popup).
 
 import (
+	"fmt"
 	"os/exec"
 	"strconv"
 	"strings"
@@ -200,7 +201,7 @@ func (m *model) resizeList(grow bool) tea.Cmd {
 func (m *model) syncPreviewHeight() {
 	hh := 0
 	if r := m.currentRow(); r != nil {
-		hh = lipgloss.Height(previewHeader(r.e.pr, m.prevW()))
+		hh = lipgloss.Height(previewHeader(r.e.pr, m.prevW())) + 1 // and the blank line under it
 	}
 	prevH := m.bodyH() - hh
 	if prevH < 1 {
@@ -558,7 +559,7 @@ func (m model) handleKey(msg tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 			m.browse = r.e.pr.URL
 			return m, tea.Quit
 		}
-		return m, nil
+		return m, m.flash.set("nothing to open")
 	case key.Matches(msg, m.keys.Copy):
 		if r := m.currentRow(); r != nil {
 			return m, copyCmd("asgotopr", "", r.e.pr.URL)
@@ -717,17 +718,20 @@ func (m model) rightColumn() string {
 	if r == nil {
 		return "" // the list says why it is empty (leftColumn)
 	}
-	return previewHeader(r.e.pr, w) + "\n" + m.prevVP.View()
+	return previewHeader(r.e.pr, w) + "\n\n" + m.prevVP.View()
 }
 
 // runAction executes the queued post-quit work: the herdr CLI call and/or
 // the browser open. Both wait for the TUI to exit because quitting is what
 // closes the popup and anything written to the terminal after that is lost.
-func runAction(action []string, browse string) {
+func runAction(action []string, browse string) error {
 	if action != nil {
-		_ = exec.Command(herdrBin(), action...).Run()
+		if err := exec.Command(herdrBin(), action...).Run(); err != nil {
+			return fmt.Errorf("herdr %s: %w", strings.Join(action, " "), err)
+		}
 	}
-	if browse != "" {
-		openURL("asgotopr", browse)
+	if err := openURL("asgotopr", browse); err != nil {
+		return fmt.Errorf("open %s: %w", browse, err)
 	}
+	return nil
 }

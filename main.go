@@ -28,7 +28,11 @@ var version = "dev"
 func main() {
 	showVersion := flag.Bool("version", false, "print the embedded version")
 	dump := flag.Bool("dump", false, "print discovered repos and PRs (no TUI)")
-	query := flag.String("query", "", "with -dump: print filter scores for this query")
+	query := flag.String("query", "", "with -dump: print the matches and their scores instead of the list")
+	flag.Usage = func() {
+		fmt.Fprintln(flag.CommandLine.Output(), "usage: asgotopr [flags]")
+		flag.PrintDefaults()
+	}
 	flag.Parse()
 
 	if *showVersion {
@@ -74,15 +78,19 @@ func main() {
 	// Alt screen and mouse mode are declared per frame by View().
 	res, err := tea.NewProgram(m).Run()
 	if err != nil {
-		fmt.Fprintln(os.Stderr, err)
+		fmt.Fprintln(os.Stderr, "asgotopr:", err)
 		os.Exit(1)
 	}
 	final := res.(model)
-	runAction(final.action, final.browse)
+	if err := runAction(final.action, final.browse); err != nil {
+		fmt.Fprintln(os.Stderr, "asgotopr:", err)
+		os.Exit(1)
+	}
 }
 
 // runDump prints the discovered state without a TUI: repos, grouped PRs with
-// their worktree resolution, and (with -query) filter scores. It refreshes
+// their worktree resolution, or (with -query) the matches and their scores
+// instead. It refreshes
 // synchronously when the cache is stale, so it exercises the same fetch path
 // the TUI uses in the background.
 func runDump(cache prCache, stale bool, repos []localRepo, slugs map[string][]localRepo, query string) {
@@ -103,6 +111,18 @@ func runDump(cache prCache, stale bool, repos []localRepo, slugs map[string][]lo
 
 	entries := buildEntries(cache.PRs, slugs)
 	fmt.Printf("entries: %d PRs with a local clone\n", len(entries))
+	if query != "" {
+		q := strings.ToLower(query)
+		titles, branches, metas := corpora(entries)
+		fmt.Printf("query %q:\n", query)
+		for _, r := range buildRows(entries, q, titles, branches, metas) {
+			if r.kind != "pr" {
+				continue
+			}
+			fmt.Printf("  %5d  #%d %s\n", r.score, r.e.pr.Number, truncate(r.e.pr.Title, 60))
+		}
+		return
+	}
 	lastSlug := ""
 	for _, e := range entries {
 		if e.pr.RepoSlug != lastSlug {
@@ -124,18 +144,6 @@ func runDump(cache prCache, stale bool, repos []localRepo, slugs map[string][]lo
 			strings.Join(e.pr.Roles, ","), relTime(e.pr.UpdatedAt), len(e.pr.Body), wt)
 		fmt.Printf("          checks %s, review %s, labels [%s]\n",
 			dumpChecks(e.pr.Checks), dumpReview(e.pr), strings.Join(labelNames(e.pr.Labels), " "))
-	}
-
-	if query != "" {
-		q := strings.ToLower(query)
-		titles, branches, metas := corpora(entries)
-		fmt.Printf("query %q:\n", query)
-		for _, r := range buildRows(entries, q, titles, branches, metas) {
-			if r.kind != "pr" {
-				continue
-			}
-			fmt.Printf("  %5d  #%d %s\n", r.score, r.e.pr.Number, truncate(r.e.pr.Title, 60))
-		}
 	}
 }
 

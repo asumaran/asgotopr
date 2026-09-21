@@ -51,7 +51,6 @@ func TestPreviewHeaderFacts(t *testing.T) {
 		"✗ changes requested", "1 approval", "2 reviewers pending", "5 comments",
 		"+10 −3", "2 files", "4 commits",
 		"2d ago by me", "updated 1h ago",
-		"────",
 	} {
 		if !strings.Contains(h, want) {
 			t.Errorf("header missing %q:\n%s", want, h)
@@ -110,8 +109,8 @@ func TestPreviewHeightFollowsHeader(t *testing.T) {
 	if hh < 8 {
 		t.Fatalf("expected a tall header, got %d lines", hh)
 	}
-	if got, want := m.prevVP.Height(), m.bodyH()-hh; got != want {
-		t.Errorf("preview height = %d, want %d (body %d - header %d)", got, want, m.bodyH(), hh)
+	if got, want := m.prevVP.Height(), m.bodyH()-hh-1; got != want {
+		t.Errorf("preview height = %d, want %d (body %d - header %d - a blank line)", got, want, m.bodyH(), hh)
 	}
 	col := m.rightColumn()
 	if got := lipgloss.Height(col); got != m.bodyH() {
