@@ -28,7 +28,8 @@ Files are split by concern but everything stays in `package main` (helpers
 were lifted from asgoto's single-file layout):
 
 - `main.go`: flags (`-version`, `-dump`, `-query`), model construction,
-  `tea.NewProgram`, post-quit herdr exec, `runDump`.
+  `tea.NewProgram`, post-quit herdr exec, `runDump` (it writes to an
+  `io.Writer`, so the tests read what `-dump` prints).
 - `github.go`: gh GraphQL searches (`author:@me`/`assignee:@me`, no bodies),
   batched body fetch, `planRefresh` (updatedAt invalidation), merge/dedup.
 - `repos.go`: `~/Developer` scan → slug → clones map, mtime-keyed scan
@@ -40,8 +41,8 @@ were lifted from asgoto's single-file layout):
 - `gitrun.go`: `runGit`: git in the current directory, with git's own stderr
   as the error, and `insideWorkTree`. The same file in every tool of the
   family that needs it.
-- `cache.go`: `prcache.json` load/save, 60s freshness debounce, and
-  `stateDir()`, a wrapper over `stateDirFor` (`statedir.go`).
+- `cache.go`: `prcache.json` load/save (through `jsonfile.go`), 60s freshness
+  debounce, and `stateDir()`, a wrapper over `stateDirFor` (`statedir.go`).
 - `filter.go`: entries, corpora, fuzzy hits, `matchBonus` ranking, row
   building, header-skipping navigation.
 - `match.go`: `findTight`/`tighten`, the fuzzy matcher with one correction: it
@@ -52,7 +53,8 @@ were lifted from asgoto's single-file layout):
   a bare `~` or `'` do not, so they never filter, rank or move the cursor. The
   same file in every tool of the family.
 - `text.go`: `truncate`, `padRight`, `padLeft`: fitting text, styled or not,
-  into cells. The same file in every tool of the family.
+  into cells. `errorBlock` is an error for a preview: every line of it cut to
+  the width, in the error color. The same file in every tool of the family.
 - `statedir.go`: `stateDirFor`: the state dir herdr injects
   (`HERDR_PLUGIN_STATE_DIR`) or, when the tool runs on its own, the same
   directory worked out
@@ -63,8 +65,13 @@ were lifted from asgoto's single-file layout):
   `relTime` (`3h ago`) for a sentence. The same file in every tool of the
   family that shows an age.
 - `markdown.go`: `renderMarkdown` (glamour with a fixed style, never
-  auto-detected), `glamourStyle` and `setPreviewStyle`. The same file in every
-  tool of the family that renders Markdown.
+  auto-detected), `glamourStyle` and `setPreviewStyle`, plus the preview's
+  side of a render: `previewMsg` (a finished render and the style it used),
+  `showRender` (points the preview at a render and reports whether it has to
+  be started), `clearPreview`, and `handlePreview` (keeps a finished render,
+  shows it when it is still the one awaited, and drops one rendered before the
+  style flipped). The same file in every tool of the family that renders
+  Markdown.
 - `listmouse.go`: `inList`, `rowUnder`, `wheelKey`: the mouse over the list.
   The wheel goes through the same code as the arrows; a click moves the
   cursor and never opens anything. The same file in every tool of the family.
@@ -90,11 +97,14 @@ were lifted from asgoto's single-file layout):
 - `highlight.go`: `highlight`/`highlightFrom`, `matchOver`, `onSel`,
   `selPad` and the `stSel`/`stMatch` styles: how a match and the selected row
   look. The same file in every tool of the family.
-- `flash.go`: `flash`, `flashMsg`, `clearFlashMsg`: a confirmation that takes
-  the help line for a moment. The same file in every tool of the family.
+- `flash.go`: `flash`, `flashMsg`, `flashErrMsg`, `clearFlashMsg`: a word that
+  takes the help line for a moment: a confirmation in green (`flash.set`), or
+  a key that could do nothing (`nothing to copy`) in the error color
+  (`flash.fail`). The same file in every tool of the family.
 - `clipboard.go`: `copyCmd`: feeds a text to the system clipboard and reports
-  it with a `flashMsg`; `ASGOTOPR_CLIPBOARD` replaces the command. The same
-  file in every tool of the family.
+  it with a `flashMsg`, or with a `flashErrMsg` when there is nothing to copy
+  or the copy fails; `ASGOTOPR_CLIPBOARD` replaces the command. The same file
+  in every tool of the family.
 - `border.go`: `hline`, `framed`, `fit`, `scrollPos`: the primitives the frame
   is drawn with (an edge with texts set into it, a line between the frame's
   sides, the position a scrolled viewport reports on an edge). `fitLines` is
@@ -116,6 +126,11 @@ were lifted from asgoto's single-file layout):
 - `herdrbin.go`: `herdrBin`: where the herdr executable is (`HERDR_BIN_PATH`,
   which the server hands to plugin commands, else `herdr` on `PATH`). The same
   file in every tool of the family that talks to herdr.
+- `herdrcli.go`: `herdrRun`, `herdrAct`, `herdrDo`, `herdrError`: running the herdr CLI. A
+  read (`herdrRun`) gets 5 seconds and a command that changes something
+  (`herdrAct`, `herdrDo`) 30, so a server that does not answer is an error, never a hang,
+  and a failure is said the way herdr said it (the message of its JSON error
+  object). The same file in every tool of the family that runs herdr.
 - `gitremote.go`: `resolveGitDir`, `originURL`, `githubSlug`,
   `githubSlugFromURL`: what a checkout says about its remote, read straight
   from the filesystem with no subprocess, so scanning dozens of repos at
@@ -124,10 +139,24 @@ were lifted from asgoto's single-file layout):
 - `ticket.go`: `ticketFrom`: the ticket key (`KEY-123`, uppercased) found in a
   branch name, a title or a folder name. The same file in every tool of the
   family that needs it.
+- `ghrun.go`: `ghRun`: running the GitHub CLI. A failure is said the way gh
+  said it (the first line of its stderr), and a missing gh reads `gh not found
+  (install the GitHub CLI)`. The tests replace it. The same file in every tool
+  of the family that runs gh.
+- `jsonfile.go`: `readJSONFile`, `writeJSONFile`, `writeFileAtomic`: a JSON
+  cache in the state dir. A file that is missing or does not parse reads as
+  nothing, and a write goes through a temporary file and a rename, so a popup
+  closed mid-write, or two of them writing at once, never leave half a file
+  for the next run. The same file in every tool of the family that keeps one.
 - `openurl.go`: `openURL`: hands a URL to the browser. On macOS a Chrome that
   is already up gets a new tab in its front window, else `open`; `xdg-open`
-  elsewhere; `ASGOTOPR_OPENER` replaces all of it. The same file in every tool
-  of the family that opens one.
+  elsewhere; `ASGOTOPR_OPENER` (`opener.go`) replaces all of it. The same file
+  in every tool of the family that opens one.
+- `opener.go`: `openerArgv`: the command `<TOOL>_OPENER` names, as words, or
+  nothing when the variable is unset and the tool's own default applies. The
+  value is a command line, not a path: `code -n` and a wrapper with flags both
+  work, a path with spaces does not. The same file in every tool of the family
+  that opens something.
 - `frame.go`: the single-frame layout the pickers share: `frameHead`,
   `splitMain` (list and preview) and the section rows (`mainY`, `listY`,
   `frameRows`, each with or without the optional context line), drawn with the
@@ -212,7 +241,9 @@ Keybinding (user config): `prefix+d` / `ctrl+alt+d` → `plugin_action`
   closes it before it does anything else. `?` is not a help key: the filter
   has the focus, so it is text. Moving, scrolling and resizing are listed in
   the panel only, so the help line stays short enough for a narrow popup. A
-  message (error, notice) takes the help line's place.
+  message takes the help line's place (`footLine`): a flash for a moment (a
+  confirmation in green, a key that could do nothing in the error color),
+  else an error or a notice in the error color.
   This tool has no options, so the panel lists the keys alone and the help
   line says `f1 help`.
 - **Filter matches** look the same in every tool of the family and come from
@@ -264,7 +295,9 @@ Keybinding (user config): `prefix+d` / `ctrl+alt+d` → `plugin_action`
   the same file in every tool that opens the browser.
 - **Copy**: `ctrl+y` copies the selected PR's URL (`copyCmd` in the shared
   `clipboard.go`) and the help line confirms it for a moment (`flash.go`,
-  shown by the shared `footLine` ahead of an error). `ASGOTOPR_CLIPBOARD` replaces the
+  shown by the shared `footLine` ahead of an error). A key that could do
+  nothing (`nothing to copy`, `copy failed: ...`, `nothing to open`) flashes
+  in the error color instead of green (`flash.fail`, `flashErrMsg`). `ASGOTOPR_CLIPBOARD` replaces the
   clipboard command (the tests point it at a stub).
 - **Errors surface inside the TUI**: a failed switch or stash opens the error
   dialog (`modeError`); the herdr action runs only after quit, because
@@ -305,7 +338,9 @@ Keybinding (user config): `prefix+d` / `ctrl+alt+d` → `plugin_action`
   no `tea.WithAltScreen` program option in v2.
 - Same-origin twin clones: PR listed once under `primaryClone` (dir name ==
   remote repo name, else lexicographic); no per-clone duplicate rows.
-- Search corpus: title + branch + `#number`/ticket/slug/dirname metas; exact
+- Search corpus: title + branch + `#number`/ticket/slug/dirname metas, kept
+  as shown and matched against the query as typed (the matcher folds case
+  itself, and its offsets are bytes into the string the row highlights); exact
   PR number +30, exact repo name +10, branch hit +2, draft −2. Digits are
   plain search text.
 - **A query makes the list a search result**: PRs are ranked, best match
