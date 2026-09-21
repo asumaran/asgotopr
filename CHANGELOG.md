@@ -1,3 +1,7 @@
+## v0.13.1 (2026-09-20)
+
+* refactor(git): run git through the shared runGit (986328b)
+
 ## v0.13.0 (2026-09-20)
 
 * feat(ui): open an options and keys panel with f1 (b71626d)
