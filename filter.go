@@ -55,16 +55,18 @@ func buildEntries(prs []prItem, slugs map[string][]localRepo) []*entry {
 	return out
 }
 
-// corpora returns the three parallel lowercased search texts for entries.
+// corpora returns the three parallel search texts for entries, as they are
+// shown: the matcher folds case itself, scores a camelCase boundary, and its
+// offsets are bytes into the very string the row highlights.
 func corpora(entries []*entry) (titles, branches, metas []string) {
 	for _, e := range entries {
-		titles = append(titles, strings.ToLower(e.pr.Title))
-		branches = append(branches, strings.ToLower(e.pr.HeadRefName))
+		titles = append(titles, e.pr.Title)
+		branches = append(branches, e.pr.HeadRefName)
 		meta := "#" + strconv.Itoa(e.pr.Number)
 		if t := ticketFrom(e.pr.HeadRefName, e.pr.Title); t != "" {
-			meta += " " + strings.ToLower(t)
+			meta += " " + t
 		}
-		meta += " " + e.pr.RepoSlug + " " + strings.ToLower(e.repo.Name)
+		meta += " " + e.pr.RepoSlug + " " + e.repo.Name
 		metas = append(metas, meta)
 	}
 	return titles, branches, metas
@@ -95,7 +97,7 @@ func matchBonus(e *entry, h hit, q string) int {
 		bonus += 30
 	}
 	tail := e.pr.RepoSlug[strings.Index(e.pr.RepoSlug, "/")+1:]
-	if q == strings.ToLower(e.repo.Name) || q == tail {
+	if n := strings.TrimSpace(q); strings.EqualFold(n, e.repo.Name) || strings.EqualFold(n, tail) {
 		bonus += 10
 	}
 	if h.branch {

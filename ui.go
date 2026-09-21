@@ -8,7 +8,6 @@ package main
 
 import (
 	"fmt"
-	"os/exec"
 	"strconv"
 	"strings"
 	"time"
@@ -216,7 +215,7 @@ func (m *model) setEntries(prs []prItem) {
 }
 
 func (m *model) applyFilter() {
-	q := strings.ToLower(m.ti.Value())
+	q := m.ti.Value()
 	m.rows = buildRows(m.entries, q, m.titles, m.branchC, m.metas)
 	if hasTerms(q) {
 		m.cursor = firstPR(m.rows) // ranked: the best match is the first row
@@ -303,21 +302,12 @@ func (m *model) updatePreview() tea.Cmd {
 	m.syncPreviewHeight()
 	r := m.currentRow()
 	if r == nil {
-		m.prevKey = ""
-		m.prevVP.SetContent("")
+		m.clearPreview()
 		return nil
 	}
-	key := previewKey(r.e.pr, m.prevW())
-	if key == m.prevKey {
+	if !m.showRender(previewKey(r.e.pr, m.prevW())) {
 		return nil
 	}
-	m.prevKey = key
-	m.prevVP.GotoTop()
-	if c, ok := m.renders[key]; ok {
-		m.prevVP.SetContent(c)
-		return nil
-	}
-	m.prevVP.SetContent(stDim.Render("rendering…"))
 	return renderPreviewCmd(r.e.pr, m.prevW(), m.previewStyle)
 }
 
@@ -402,6 +392,9 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	case flashMsg:
 		return m, m.flash.set(string(msg))
 
+	case flashErrMsg:
+		return m, m.flash.fail(string(msg))
+
 	case clearFlashMsg:
 		m.flash.clear(msg)
 		return m, nil
@@ -443,16 +436,7 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		return m, m.finishRefresh(applyBodies(merged, msg.bodies), true)
 
 	case previewMsg:
-		if msg.style != m.previewStyle { // rendered before the style flipped
-			return m, nil
-		}
-		if m.renders == nil {
-			m.renders = map[string]string{}
-		}
-		m.renders[msg.key] = msg.content
-		if msg.key == m.prevKey {
-			m.prevVP.SetContent(msg.content)
-		}
+		m.handlePreview(msg)
 		return m, nil
 
 	case stashedMsg:
@@ -559,7 +543,7 @@ func (m model) handleKey(msg tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 			m.browse = r.e.pr.URL
 			return m, tea.Quit
 		}
-		return m, m.flash.set("nothing to open")
+		return m, m.flash.fail("nothing to open")
 	case key.Matches(msg, m.keys.Copy):
 		if r := m.currentRow(); r != nil {
 			return m, copyCmd("asgotopr", "", r.e.pr.URL)
@@ -726,7 +710,7 @@ func (m model) rightColumn() string {
 // closes the popup and anything written to the terminal after that is lost.
 func runAction(action []string, browse string) error {
 	if action != nil {
-		if err := exec.Command(herdrBin(), action...).Run(); err != nil {
+		if err := herdrDo(action...); err != nil {
 			return fmt.Errorf("herdr %s: %w", strings.Join(action, " "), err)
 		}
 	}

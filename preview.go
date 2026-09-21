@@ -16,12 +16,6 @@ import (
 	"github.com/charmbracelet/x/ansi"
 )
 
-type previewMsg struct {
-	key     string
-	style   string // glamour style the render used; dropped if it changed since
-	content string
-}
-
 func previewKey(pr prItem, width int) string {
 	return pr.URL + "|" + strconv.Itoa(width) + "|" + strconv.FormatInt(pr.UpdatedAt.Unix(), 10)
 }

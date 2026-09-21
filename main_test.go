@@ -1,8 +1,11 @@
 package main
 
 import (
+	"bytes"
 	"os"
 	"path/filepath"
+	"strconv"
+	"strings"
 	"testing"
 	"time"
 
@@ -319,5 +322,113 @@ func TestScanReposFollowsSymlinkedClones(t *testing.T) {
 	}
 	if repos[0].Slug != "asumaran/shopnest" || repos[0].Path != link || repos[0].Name != "shopnest" {
 		t.Errorf("unexpected repo: %+v", repos[0])
+	}
+}
+
+// The matcher gets the text as it is shown and the query as it is typed: case
+// never decides a match, and the offsets are bytes into the title on screen.
+func TestFilterFoldsCase(t *testing.T) {
+	entries := testEntries()
+	entries[0].pr.Title = "Fix Login flow"
+	titles, branches, metas := corpora(entries)
+	if titles[0] != "Fix Login flow" {
+		t.Fatalf("the corpus is the shown text: %q", titles[0])
+	}
+	for _, q := range []string{"login", "LOGIN", "'Login", "fed-123", "ALPHA"} {
+		rows := buildRows(entries, q, titles, branches, metas)
+		if first := firstPR(rows); first < 0 {
+			t.Errorf("%q matched nothing", q)
+		}
+	}
+	rows := buildRows(entries, "LOGIN", titles, branches, metas)
+	r := rows[firstPR(rows)]
+	if r.e.pr.URL != "a1" || len(r.idx) == 0 || r.idx[0] != 4 {
+		t.Errorf("LOGIN: %s idx %v, want a1 with the match at byte 4 of the title", r.e.pr.URL, r.idx)
+	}
+}
+
+// dumpInputs is what main hands runDump, built from testEntries: the cache,
+// the clones and the clones by slug. Nothing is read from the real state dir
+// or the real ~/Developer, and the clones are fake paths, so git only answers
+// "no local branch".
+func dumpInputs(t *testing.T) (prCache, []localRepo, map[string][]localRepo) {
+	t.Helper()
+	t.Setenv("HERDR_PLUGIN_STATE_DIR", t.TempDir())
+	t.Setenv("ASGOTOPR_ROOT", t.TempDir())
+	cache := prCache{FetchedAt: time.Now()}
+	var repos []localRepo
+	slugs := map[string][]localRepo{}
+	for _, e := range testEntries() {
+		cache.PRs = append(cache.PRs, e.pr)
+		if _, seen := slugs[e.repo.Slug]; !seen {
+			repos = append(repos, e.repo)
+			slugs[e.repo.Slug] = []localRepo{e.repo}
+		}
+	}
+	return cache, repos, slugs
+}
+
+// TestRunDump covers -dump on a fresh cache (no refresh, so no network): the
+// counts on top, every clone, and every PR once under its repo.
+func TestRunDump(t *testing.T) {
+	cache, repos, slugs := dumpInputs(t)
+	var out bytes.Buffer
+	runDump(&out, cache, false, repos, slugs, "")
+	got := out.String()
+	lines := strings.Split(strings.TrimRight(got, "\n"), "\n")
+	if !strings.HasPrefix(lines[0], "cache: 3 PRs, fetched ") {
+		t.Errorf("first line %q, want the cache summary", lines[0])
+	}
+	for _, want := range []string{"repos: 2 GitHub clones under ", "entries: 3 PRs with a local clone\n", "alpha (/d/alpha)\n", "beta (/d/beta)\n"} {
+		if strings.Count(got, want) != 1 {
+			t.Errorf("%q is in the dump %d times, want once:\n%s", want, strings.Count(got, want), got)
+		}
+	}
+	for _, title := range []string{"fix login flow", "add dashboard widgets", "update readme"} {
+		if strings.Count(got, title) != 1 {
+			t.Errorf("PR %q is listed %d times, want once:\n%s", title, strings.Count(got, title), got)
+		}
+	}
+	// 3 summary lines, 2 clones, 2 repo headers, 2 lines per PR.
+	if len(lines) != 13 {
+		t.Errorf("got %d lines, want 13:\n%s", len(lines), got)
+	}
+	if n := strings.Count(got, "(no local branch)"); n != 3 {
+		t.Errorf("%d PRs without a local branch, want the 3 of the fake clones:\n%s", n, got)
+	}
+}
+
+// TestRunDumpQuery covers -dump -query: the matches with their scores, best
+// first, instead of the grouped list.
+func TestRunDumpQuery(t *testing.T) {
+	cache, repos, slugs := dumpInputs(t)
+	var out bytes.Buffer
+	runDump(&out, cache, false, repos, slugs, "alpha")
+	got := out.String()
+	_, matches, ok := strings.Cut(got, "query \"alpha\":\n")
+	if !ok {
+		t.Fatalf("no query line:\n%s", got)
+	}
+	lines := strings.Split(strings.TrimRight(matches, "\n"), "\n")
+	if len(lines) != 2 {
+		t.Fatalf("got %d matches, want the 2 PRs of alpha:\n%s", len(lines), got)
+	}
+	var scores []int
+	for i, want := range []string{"#100 fix login flow", "#205 add dashboard widgets"} {
+		score, rest, _ := strings.Cut(strings.TrimSpace(lines[i]), "  ")
+		n, err := strconv.Atoi(score)
+		if err != nil || rest != want {
+			t.Errorf("match %d is %q, want a score and %q", i, lines[i], want)
+		}
+		scores = append(scores, n)
+	}
+	if scores[0] < scores[1] {
+		t.Errorf("scores %v, want the best first", scores)
+	}
+	// The matches replace the list: no PR of the other repo, no list rows.
+	for _, not := range []string{"update readme", "no local branch", "checks ", "alpha (/d/alpha)"} {
+		if strings.Contains(got, not) {
+			t.Errorf("the query dump has %q, a piece of the full listing:\n%s", not, got)
+		}
 	}
 }

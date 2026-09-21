@@ -6,8 +6,6 @@ package main
 // outside herdr) use that same directory (statedir.go).
 
 import (
-	"encoding/json"
-	"os"
 	"path/filepath"
 	"time"
 )
@@ -36,19 +34,11 @@ func prCacheFile() string {
 
 func loadPRCache() prCache {
 	var c prCache
-	if data, err := os.ReadFile(prCacheFile()); err == nil {
-		_ = json.Unmarshal(data, &c)
-	}
+	readJSONFile(prCacheFile(), &c)
 	return c
 }
 
-func savePRCache(c prCache) {
-	if data, err := json.Marshal(c); err == nil {
-		path := prCacheFile()
-		_ = os.MkdirAll(filepath.Dir(path), 0o755)
-		_ = os.WriteFile(path, data, 0o644)
-	}
-}
+func savePRCache(c prCache) { writeJSONFile(prCacheFile(), c) }
 
 // stateDir is where asgotopr keeps its runtime state.
 func stateDir() string { return stateDirFor("asgotopr") }

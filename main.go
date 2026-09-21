@@ -12,6 +12,7 @@ package main
 import (
 	"flag"
 	"fmt"
+	"io"
 	"os"
 	"strings"
 	"time"
@@ -47,7 +48,7 @@ func main() {
 	stale := time.Since(cache.FetchedAt) >= prCacheFresh
 
 	if *dump {
-		runDump(cache, stale, repos, slugs, *query)
+		runDump(os.Stdout, cache, stale, repos, slugs, *query)
 		return
 	}
 
@@ -93,7 +94,7 @@ func main() {
 // instead. It refreshes
 // synchronously when the cache is stale, so it exercises the same fetch path
 // the TUI uses in the background.
-func runDump(cache prCache, stale bool, repos []localRepo, slugs map[string][]localRepo, query string) {
+func runDump(w io.Writer, cache prCache, stale bool, repos []localRepo, slugs map[string][]localRepo, query string) {
 	if stale {
 		fresh, err := refreshSynchronously(cache)
 		if err != nil {
@@ -103,30 +104,30 @@ func runDump(cache prCache, stale bool, repos []localRepo, slugs map[string][]lo
 			savePRCache(cache)
 		}
 	}
-	fmt.Printf("cache: %d PRs, fetched %s\n", len(cache.PRs), relTime(cache.FetchedAt))
-	fmt.Printf("repos: %d GitHub clones under %s\n", len(repos), homeRel(devRoot()))
+	fmt.Fprintf(w, "cache: %d PRs, fetched %s\n", len(cache.PRs), relTime(cache.FetchedAt))
+	fmt.Fprintf(w, "repos: %d GitHub clones under %s\n", len(repos), homeRel(devRoot()))
 	for _, r := range repos {
-		fmt.Printf("  %-24s %s\n", r.Name, r.Slug)
+		fmt.Fprintf(w, "  %-24s %s\n", r.Name, r.Slug)
 	}
 
 	entries := buildEntries(cache.PRs, slugs)
-	fmt.Printf("entries: %d PRs with a local clone\n", len(entries))
+	fmt.Fprintf(w, "entries: %d PRs with a local clone\n", len(entries))
 	if query != "" {
-		q := strings.ToLower(query)
+		q := query
 		titles, branches, metas := corpora(entries)
-		fmt.Printf("query %q:\n", query)
+		fmt.Fprintf(w, "query %q:\n", query)
 		for _, r := range buildRows(entries, q, titles, branches, metas) {
 			if r.kind != "pr" {
 				continue
 			}
-			fmt.Printf("  %5d  #%d %s\n", r.score, r.e.pr.Number, truncate(r.e.pr.Title, 60))
+			fmt.Fprintf(w, "  %5d  #%d %s\n", r.score, r.e.pr.Number, truncate(r.e.pr.Title, 60))
 		}
 		return
 	}
 	lastSlug := ""
 	for _, e := range entries {
 		if e.pr.RepoSlug != lastSlug {
-			fmt.Printf("%s (%s)\n", e.repo.Name, homeRel(e.repo.Path))
+			fmt.Fprintf(w, "%s (%s)\n", e.repo.Name, homeRel(e.repo.Path))
 			lastSlug = e.pr.RepoSlug
 		}
 		wt := "no local branch"
@@ -139,10 +140,10 @@ func runDump(cache prCache, stale bool, repos []localRepo, slugs map[string][]lo
 		} else if branchExists(e.repo.Path, e.pr.HeadRefName) {
 			wt = "local branch, not checked out"
 		}
-		fmt.Printf("  #%-6d %-40s %s [%s] updated %s, body %dB (%s)\n",
+		fmt.Fprintf(w, "  #%-6d %-40s %s [%s] updated %s, body %dB (%s)\n",
 			e.pr.Number, truncate(e.pr.Title, 40), e.pr.HeadRefName,
 			strings.Join(e.pr.Roles, ","), relTime(e.pr.UpdatedAt), len(e.pr.Body), wt)
-		fmt.Printf("          checks %s, review %s, labels [%s]\n",
+		fmt.Fprintf(w, "          checks %s, review %s, labels [%s]\n",
 			dumpChecks(e.pr.Checks), dumpReview(e.pr), strings.Join(labelNames(e.pr.Labels), " "))
 	}
 }

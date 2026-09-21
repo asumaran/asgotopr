@@ -13,7 +13,6 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"os/exec"
 	"sort"
 	"strings"
 	"time"
@@ -253,14 +252,7 @@ func ghGraphQL(ctx context.Context, query string, vars map[string]string) ([]byt
 	for k, v := range vars {
 		args = append(args, "-f", k+"="+v)
 	}
-	out, err := exec.CommandContext(ctx, "gh", args...).Output()
-	if err != nil {
-		if ee, ok := err.(*exec.ExitError); ok && len(ee.Stderr) > 0 {
-			return nil, fmt.Errorf("gh: %s", firstLine(string(ee.Stderr)))
-		}
-		return nil, fmt.Errorf("gh: %w", err)
-	}
-	return out, nil
+	return ghRun(ctx, args...)
 }
 
 // fetchSearch runs one search (role = "author" | "assignee") and returns the

@@ -1,6 +1,7 @@
 package main
 
 import (
+	"fmt"
 	"os"
 	"path/filepath"
 	"strings"
@@ -275,26 +276,69 @@ func TestCtrlOQueuesBrowserOpenAndQuits(t *testing.T) {
 	}
 }
 
-// TestFrameGeometry pins the single-frame layout: exactly height lines, each
-// exactly width cells, sections where the click math expects them.
-func TestFrameGeometry(t *testing.T) {
-	m := testModel(t)
-	lines := strings.Split(m.View().Content, "\n")
+// frameFits checks the frame invariant: exactly height lines, each exactly
+// width cells.
+func frameFits(t *testing.T, label string, m model) {
+	t.Helper()
+	lines := strings.Split(m.render(), "\n")
 	if len(lines) != m.height {
-		t.Errorf("%d lines, want %d", len(lines), m.height)
+		t.Errorf("%s: %d lines, want %d", label, len(lines), m.height)
 	}
 	for i, l := range lines {
 		if w := ansi.StringWidth(l); w != m.width {
-			t.Errorf("line %d is %d cells, want %d: %q", i, w, m.width, ansi.Strip(l))
+			t.Errorf("%s: line %d is %d cells, want %d: %q", label, i, w, m.width, ansi.Strip(l))
 		}
 	}
-	plain := strings.Split(ansi.Strip(m.View().Content), "\n")
-	if !strings.HasPrefix(plain[0], "╭") || !strings.HasPrefix(plain[len(plain)-1], "╰") ||
-		!strings.Contains(plain[mainY(false)], "┬") || !strings.Contains(plain[len(plain)-3], "─ 2/2 ─┴") {
-		t.Errorf("frame sections misplaced:\n%s", strings.Join(plain, "\n"))
+}
+
+// TestFrameGeometry pins the single-frame layout: exactly height lines, each
+// exactly width cells, sections where the click math expects them. The narrow
+// and short sizes are the ones a popup really gets; the help line is cut
+// there, so its text is checked where it fits. The last size is the floor:
+// the body keeps one line (bodyH) and the columns their minimum (splitWidths),
+// so under 25x7 the frame is larger than the screen by design and nothing is
+// promised.
+func TestFrameGeometry(t *testing.T) {
+	for _, size := range [][2]int{{120, 30}, {94, 24}, {150, 16}, {61, 12}, {40, 10}, {25, 7}} {
+		next, _ := testModel(t).Update(tea.WindowSizeMsg{Width: size[0], Height: size[1]})
+		m := next.(model)
+		label := fmt.Sprint(size)
+		frameFits(t, label, m)
+		plain := strings.Split(ansi.Strip(m.render()), "\n")
+		if !strings.HasPrefix(plain[0], "╭") || !strings.HasPrefix(plain[len(plain)-1], "╰") ||
+			!strings.Contains(plain[mainY(false)], "┬") || !strings.Contains(plain[len(plain)-3], "─ 2/2 ─┴") {
+			t.Errorf("%s: frame sections misplaced:\n%s", label, strings.Join(plain, "\n"))
+		}
+		// The list starts at listY: the repo's name and the selected PR under
+		// it, or the PR alone when the body is a single line.
+		if top := plain[listY(false)]; !strings.HasPrefix(top, "│alpha") && !strings.HasPrefix(top, "│▌ #100") {
+			t.Errorf("%s: the list does not start at listY: %q", label, top)
+		}
+		help := plain[len(plain)-2]
+		if !strings.Contains(help, "type filter") || size[0] >= 94 && !strings.Contains(help, "esc/q quit") {
+			t.Errorf("%s: help line = %q", label, help)
+		}
 	}
-	if !strings.Contains(plain[len(plain)-2], "type filter") || !strings.Contains(plain[len(plain)-2], "esc/q quit") {
-		t.Errorf("help line = %q", plain[len(plain)-2])
+}
+
+// TestFrameGeometryOutsideFilterMode: the confirmation, the busy note and the
+// error take the preview's place, and none of them may push the frame out of
+// its size: their lines are cut to the column and to the body's height. The
+// open panel is laid over the same frame.
+func TestFrameGeometryOutsideFilterMode(t *testing.T) {
+	for _, size := range [][2]int{{94, 24}, {61, 12}, {40, 10}, {25, 7}} {
+		next, _ := testModel(t).Update(tea.WindowSizeMsg{Width: size[0], Height: size[1]})
+		m := next.(model)
+		m.pending = m.currentRow().e
+		m.busyMsg = "Switching to " + strings.Repeat("a-long-branch-name/", 8) + "…"
+		m.errMsg = strings.Repeat("fatal: a git failure that needs more than one line. ", 6) + strings.Repeat("x", 200)
+		for name, mode := range map[string]uiMode{"confirm": modeConfirmStash, "busy": modeBusy, "error": modeError} {
+			m.mode = mode
+			frameFits(t, fmt.Sprint(size, " ", name), m)
+		}
+		m.mode = modeFilter
+		m.panel.open = true
+		frameFits(t, fmt.Sprint(size, " panel"), m)
 	}
 }
 
@@ -396,6 +440,101 @@ func TestCopyKeyCopiesTheURL(t *testing.T) {
 	plain = strings.Split(ansi.Strip(res.(model).View().Content), "\n")
 	if help := plain[len(plain)-2]; !strings.Contains(help, "type filter") {
 		t.Errorf("after the timer the help is back: %q", help)
+	}
+}
+
+// TestNothingUnderTheCursor: with the list filtered down to nothing, ctrl+y
+// says there is nothing to copy without running the clipboard command, and
+// ctrl+o and enter say there is nothing to open instead of closing the popup.
+func TestNothingUnderTheCursor(t *testing.T) {
+	log := filepath.Join(t.TempDir(), "clip")
+	stub := filepath.Join(t.TempDir(), "clipboard")
+	if err := os.WriteFile(stub, []byte("#!/bin/sh\ncat > "+log+"\n"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	t.Setenv("ASGOTOPR_CLIPBOARD", stub)
+	m := testModel(t)
+	for _, r := range "zzzzqq" {
+		res, _ := m.Update(tea.KeyPressMsg{Code: r, Text: string(r)})
+		m = res.(model)
+	}
+	if m.currentRow() != nil {
+		t.Fatalf("the query should leave nothing under the cursor, got %d rows", len(m.rows))
+	}
+	res, cmd := m.Update(tea.KeyPressMsg{Code: 'y', Mod: tea.ModCtrl})
+	if cmd == nil {
+		t.Fatal("ctrl+y returned no command")
+	}
+	res, _ = res.(model).Update(cmd())
+	if got := res.(model).flash.text; got != "nothing to copy" {
+		t.Errorf("ctrl+y with an empty list flashed %q", got)
+	}
+	if _, err := os.Stat(log); err == nil {
+		t.Errorf("the clipboard command ran with nothing to copy")
+	}
+	plain := strings.Split(ansi.Strip(res.(model).render()), "\n")
+	if help := plain[len(plain)-2]; !strings.Contains(help, "nothing to copy") {
+		t.Errorf("help line = %q, want the flash", help)
+	}
+
+	res, cmd = m.Update(tea.KeyPressMsg{Code: 'o', Mod: tea.ModCtrl})
+	got := res.(model)
+	if got.flash.text != "nothing to open" || got.browse != "" || got.action != nil {
+		t.Errorf("ctrl+o with an empty list: flash %q, browse %q, action %v", got.flash.text, got.browse, got.action)
+	}
+	if quitsNow(cmd) {
+		t.Errorf("ctrl+o with an empty list closed the popup")
+	}
+	if got.ti.Value() != "zzzzqq" {
+		t.Errorf("ctrl+o leaked into the filter: %q", got.ti.Value())
+	}
+}
+
+// quitsNow reports whether cmd is tea.Quit. The flash's timer is a command
+// too, and one that blocks for as long as the flash lasts, so the command runs
+// aside and only an answer that comes at once counts.
+func quitsNow(cmd tea.Cmd) bool {
+	if cmd == nil {
+		return false
+	}
+	done := make(chan tea.Msg, 1)
+	go func() { done <- cmd() }()
+	select {
+	case msg := <-done:
+		_, ok := msg.(tea.QuitMsg)
+		return ok
+	case <-time.After(100 * time.Millisecond):
+		return false
+	}
+}
+
+// TestScrollingUpRevealsTheGroupHeader: coming up onto the first PR of a repo
+// shows the repo's name too, as asgotoissues does with a stack (scrollTo in
+// listnav.go).
+func TestScrollingUpRevealsTheGroupHeader(t *testing.T) {
+	m := testModel(t)
+	first := -1 // the first PR of the last repo
+	for i, r := range m.rows {
+		if r.kind == "header" {
+			first = i + 1
+		}
+	}
+	if first < 0 || first >= len(m.rows) || m.rows[first].kind != "pr" {
+		t.Fatalf("the fixture has no PR under its last header: %d rows", len(m.rows))
+	}
+	// A list short enough to scroll down to that PR.
+	for h := 12; h > 6 && m.listVP.Height() > len(m.rows)-first; h-- {
+		res, _ := m.Update(tea.WindowSizeMsg{Width: 120, Height: h})
+		m = res.(model)
+	}
+	m.listVP.SetYOffset(first)
+	if m.listVP.YOffset() != first {
+		t.Fatalf("could not scroll to row %d: %d rows in %d lines", first, len(m.rows), m.listVP.Height())
+	}
+	m.cursor = first
+	m.ensureVisible()
+	if got := m.listVP.YOffset(); got != first-1 {
+		t.Errorf("offset = %d, want %d: the header above row %d should show", got, first-1, first)
 	}
 }
 
