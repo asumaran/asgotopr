@@ -1,3 +1,14 @@
+## v0.14.0 (2026-09-21)
+
+* docs: describe the new shared files and flashes (f173e08)
+* refactor: share the runners and the preview tail (b1f4c15)
+* docs: describe the opener, -dump and the header (94a0f1e)
+* fix(ui): fixed preview header, report failures (42f9a10)
+* docs: match the docs to the shared helpers (9fe1b4f)
+* fix(ui): quit on ctrl+c anywhere, mark bad refresh (28572e6)
+* test(pty): cover q, name the docs' bullets alike (44ef998)
+* fix(list): say why the list is empty, in the list (5f38cb8)
+
 ## v0.13.2 (2026-09-20)
 
 * docs(readme): list the keys in a table (135610b)
