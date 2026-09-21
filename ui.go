@@ -687,8 +687,21 @@ func (m model) status() string {
 }
 
 // listLines is the list as exactly bodyH lines of listW cells.
+// leftColumn is the list, or the reason there is nothing to list. A network
+// error is on the help line already.
+func (m model) leftColumn() string {
+	if len(m.rows) > 0 {
+		return m.listVP.View()
+	}
+	reason := "No open PRs"
+	if len(m.entries) == 0 && m.refreshing {
+		reason = "Loading PRs…"
+	}
+	return emptyList("", m.ti.Value(), reason, m.listW())
+}
+
 func (m model) listLines() []string {
-	lines := strings.Split(m.listVP.View(), "\n")
+	lines := strings.Split(m.leftColumn(), "\n")
 	for len(lines) < m.bodyH() {
 		lines = append(lines, "")
 	}
@@ -711,10 +724,7 @@ func (m model) rightColumn() string {
 	}
 	r := m.currentRow()
 	if r == nil {
-		if len(m.entries) == 0 && !m.refreshing {
-			return "\n" + stDim.Render("No open PRs")
-		}
-		return ""
+		return "" // the list says why it is empty (leftColumn)
 	}
 	return previewHeader(r.e.pr, w) + "\n" + m.prevVP.View()
 }

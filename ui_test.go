@@ -453,3 +453,20 @@ func TestPanel(t *testing.T) {
 		t.Errorf("f1 opens the panel whatever the filter says")
 	}
 }
+
+// TestEmptyListSaysWhy: a query that matches nothing says so in the list, as
+// in every tool of the family (emptyList in listnav.go).
+func TestEmptyListSaysWhy(t *testing.T) {
+	m := testModel(t)
+	for _, r := range "zzzzqq" {
+		res, _ := m.Update(tea.KeyPressMsg{Code: r, Text: string(r)})
+		m = res.(model)
+	}
+	if len(m.rows) != 0 {
+		t.Fatalf("the query should match nothing, got %d rows", len(m.rows))
+	}
+	list := ansi.Strip(m.listLines()[0])
+	if !strings.HasPrefix(list, " No matches") {
+		t.Errorf("the list should say there are no matches: %q", list)
+	}
+}
