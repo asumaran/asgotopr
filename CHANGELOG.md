@@ -1,3 +1,8 @@
+## v0.13.2 (2026-09-20)
+
+* docs(readme): list the keys in a table (135610b)
+* refactor(list): keep the cursor in view with scrollTo (bc3c795)
+
 ## v0.13.1 (2026-09-20)
 
 * refactor(git): run git through the shared runGit (986328b)
