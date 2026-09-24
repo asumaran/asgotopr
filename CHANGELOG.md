@@ -1,3 +1,7 @@
+## v0.14.1 (2026-09-24)
+
+* refactor(ui): take the shared frame without the context line (00f14b0)
+
 ## v0.14.0 (2026-09-21)
 
 * docs: describe the new shared files and flashes (f173e08)
