@@ -227,11 +227,11 @@ func TestMouseClickSelectsRowWithoutOpening(t *testing.T) {
 	m := testModel(t)
 	first := m.cursor
 	// rows: header(alpha) #100 header(beta) #7 → the second PR sits on row 3,
-	// which is screen line listY(false)+3 (the list starts at listY(false), inside the frame).
+	// which is screen line listY+3 (the list starts at listY, inside the frame).
 	click := func(x, y int) tea.MouseClickMsg {
 		return tea.MouseClickMsg{X: x, Y: y, Button: tea.MouseLeft}
 	}
-	res, cmd := m.Update(click(3, listY(false)+3))
+	res, cmd := m.Update(click(3, listY+3))
 	got := res.(model)
 	if got.cursor == first || got.currentRow() == nil || got.currentRow().e.pr.Number != 7 {
 		t.Fatalf("click did not select #7: cursor=%d", got.cursor)
@@ -241,15 +241,15 @@ func TestMouseClickSelectsRowWithoutOpening(t *testing.T) {
 		t.Errorf("click queued an action: %v", got.action)
 	}
 	// Clicking a header, the preview, the divider or the frame changes nothing.
-	for _, c := range []tea.MouseClickMsg{click(3, listY(false)+2), click(got.listW()+10, listY(false)+1),
-		click(got.listW()+1, listY(false)+1), click(0, listY(false)+1), click(3, mainY(false)), click(3, 1)} {
+	for _, c := range []tea.MouseClickMsg{click(3, listY+2), click(got.listW()+10, listY+1),
+		click(got.listW()+1, listY+1), click(0, listY+1), click(3, mainY), click(3, 1)} {
 		res, _ = got.Update(c)
 		if res.(model).cursor != got.cursor {
 			t.Errorf("click %+v moved the cursor to %d", c, res.(model).cursor)
 		}
 	}
 	// Right click is ignored too.
-	res, _ = got.Update(tea.MouseClickMsg{X: 3, Y: listY(false) + 1, Button: tea.MouseRight})
+	res, _ = got.Update(tea.MouseClickMsg{X: 3, Y: listY + 1, Button: tea.MouseRight})
 	if res.(model).cursor != got.cursor {
 		t.Errorf("right click moved the cursor")
 	}
@@ -306,12 +306,12 @@ func TestFrameGeometry(t *testing.T) {
 		frameFits(t, label, m)
 		plain := strings.Split(ansi.Strip(m.render()), "\n")
 		if !strings.HasPrefix(plain[0], "╭") || !strings.HasPrefix(plain[len(plain)-1], "╰") ||
-			!strings.Contains(plain[mainY(false)], "┬") || !strings.Contains(plain[len(plain)-3], "─ 2/2 ─┴") {
+			!strings.Contains(plain[mainY], "┬") || !strings.Contains(plain[len(plain)-3], "─ 2/2 ─┴") {
 			t.Errorf("%s: frame sections misplaced:\n%s", label, strings.Join(plain, "\n"))
 		}
 		// The list starts at listY: the repo's name and the selected PR under
 		// it, or the PR alone when the body is a single line.
-		if top := plain[listY(false)]; !strings.HasPrefix(top, "│alpha") && !strings.HasPrefix(top, "│▌ #100") {
+		if top := plain[listY]; !strings.HasPrefix(top, "│alpha") && !strings.HasPrefix(top, "│▌ #100") {
 			t.Errorf("%s: the list does not start at listY: %q", label, top)
 		}
 		help := plain[len(plain)-2]

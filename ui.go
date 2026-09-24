@@ -174,7 +174,7 @@ func (m *model) prevW() int    { return max(10, m.detailsW()-2) }
 
 // bodyH is the height of the main section: everything but the frame's own
 // lines and the help.
-func (m *model) bodyH() int { return max(1, m.height-frameRows(false)-1) }
+func (m *model) bodyH() int { return max(1, m.height-frameRows-1) }
 
 func (m *model) resize() {
 	m.listVP.SetWidth(m.listW())
@@ -617,18 +617,18 @@ func (m model) handleMouse(msg tea.MouseWheelMsg) (tea.Model, tea.Cmd) {
 
 // overList reports whether a screen cell is inside the list.
 func (m *model) overList(x, y int) bool {
-	return m.mode == modeFilter && inList(x, y, listY(false), m.listW(), m.bodyH())
+	return m.mode == modeFilter && inList(x, y, listY, m.listW(), m.bodyH())
 }
 
 // handleClick moves the selection to the PR row under a left click on the
 // list. It never opens the PR: that stays on enter, so a stray click cannot
-// switch branches. The list starts on screen row listY(false), inside the frame's
+// switch branches. The list starts on screen row listY, inside the frame's
 // left side, and is offset by its scroll position.
 func (m model) handleClick(msg tea.MouseClickMsg) (tea.Model, tea.Cmd) {
 	if msg.Button != tea.MouseLeft || !m.overList(msg.X, msg.Y) {
 		return m, nil
 	}
-	i, ok := rowUnder(msg.Y, listY(false), m.listVP.YOffset(), len(m.rows))
+	i, ok := rowUnder(msg.Y, listY, m.listVP.YOffset(), len(m.rows))
 	if !ok || m.rows[i].kind != "pr" || i == m.cursor {
 		return m, nil
 	}
@@ -643,14 +643,14 @@ func (m model) View() tea.View { return popupView(m.render(), m.mode == modeFilt
 // line: nothing here needs one.
 func (m model) render() string {
 	w := m.width
-	out := frameHead(w, "", withDevMark(m.status()), m.ti.View())
+	out := frameHead(w, withDevMark(m.status()), m.ti.View())
 	pos := ""
 	if m.mode == modeFilter && m.currentRow() != nil {
 		pos = scrollPos(&m.prevVP)
 	}
 	out = append(out, splitMain(m.listLines(), strings.Split(m.rightColumn(), "\n"),
 		m.listW(), m.detailsW(), m.counter(), pos)...)
-	out = append(out, framed(w, footLine(m.flash, m.netErr, m.help, m.keys, w-4)), hline(w, "╰", "╯", "", ""))
+	out = append(out, framed(w, footLine(m.flash, m.netErr, "", m.help, m.keys, w-4)), hline(w, "╰", "╯", "", ""))
 	if m.panel.open && m.mode == modeFilter { // a confirmation or an error shows instead
 		keys := keyLines(m.help, m.keys, w-10)
 		out = overlay(out, panelLines(nil, m.panel.cursor, keys, w-4, len(out)-2), w)
