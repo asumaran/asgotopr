@@ -110,7 +110,7 @@ func runDump(w io.Writer, cache prCache, stale bool, repos []localRepo, slugs ma
 		fmt.Fprintf(w, "  %-24s %s\n", r.Name, r.Slug)
 	}
 
-	entries := buildEntries(cache.PRs, slugs)
+	entries := buildEntries(overlaySharedPRs(cache.PRs, loadSharedPRs()), slugs)
 	fmt.Fprintf(w, "entries: %d PRs with a local clone\n", len(entries))
 	if query != "" {
 		q := query

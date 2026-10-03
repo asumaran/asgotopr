@@ -210,7 +210,7 @@ func (m *model) syncPreviewHeight() {
 }
 
 func (m *model) setEntries(prs []prItem) {
-	m.entries = buildEntries(prs, m.slugs)
+	m.entries = buildEntries(overlaySharedPRs(prs, loadSharedPRs()), m.slugs)
 	m.titles, m.branchC, m.metas = corpora(m.entries)
 }
 

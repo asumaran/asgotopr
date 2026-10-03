@@ -433,3 +433,27 @@ func refreshSynchronously(cache prCache) (prCache, error) {
 	}
 	return prCache{FetchedAt: time.Now(), PRs: applyBodies(merged, bodies)}, nil
 }
+
+// overlaySharedPRs returns prs with the facts of the shared PR cache
+// (prshare.go, written by asmeta) applied where the cache saw a later version
+// of the same PR, by URL, never by branch: the draft flag and the title, and
+// a PR it saw merged or closed leaves this list of open PRs. It is a display
+// layer: the slice it gets, which is what prcache.json keeps, is not touched,
+// and the next own fetch decides for good.
+func overlaySharedPRs(prs []prItem, shared sharedPRs) []prItem {
+	out := make([]prItem, 0, len(prs))
+	for _, p := range prs {
+		if sp, ok := shared.pull(p.URL); ok && sp.newerThan(p.UpdatedAt) {
+			if sp.State == "merged" || sp.State == "closed" {
+				continue
+			}
+			p.IsDraft = sp.State == "draft"
+			if sp.Title != "" {
+				p.Title = sp.Title
+			}
+			p.UpdatedAt = sp.UpdatedAt
+		}
+		out = append(out, p)
+	}
+	return out
+}

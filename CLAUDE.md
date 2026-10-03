@@ -30,6 +30,13 @@ were lifted from asgoto's single-file layout):
 - `main.go`: flags (`-version`, `-dump`, `-query`), model construction,
   `tea.NewProgram`, post-quit herdr exec, `runDump` (it writes to an
   `io.Writer`, so the tests read what `-dump` prints).
+- `prshare.go`: the shared PR cache (`prs.json` in asmeta's state dir, asmeta
+  its only writer; format in asgoto's `docs/DESIGN.md`, "Shared PR cache").
+  The same file in every tool of the family that shows PRs. Read here only
+  through `overlaySharedPRs` (`github.go`): a PR the shared cache saw in a
+  later version (`updated_at`), matched by URL, takes its draft flag and
+  title, and one it saw merged or closed leaves the list; display only,
+  `prcache.json` keeps what the own fetch said.
 - `github.go`: gh GraphQL searches (`author:@me`/`assignee:@me`, no bodies),
   batched body fetch, `planRefresh` (updatedAt invalidation), merge/dedup.
 - `repos.go`: `~/Developer` scan → slug → clones map, mtime-keyed scan
