@@ -1,3 +1,7 @@
+## v0.15.0 (2026-10-03)
+
+* feat(prs): take newer pull request facts from the shared cache (6bc4426)
+
 ## v0.14.1 (2026-09-24)
 
 * refactor(ui): take the shared frame without the context line (00f14b0)
